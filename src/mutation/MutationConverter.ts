@@ -31,27 +31,38 @@ export class MutationConverter {
   private readonly sparqlAlgebraFactory: SparqlAlgebraFactory;
 
   /**
+   * Create an extended data factory that properly implements the variable method
+   * This avoids unsafe type casting and provides runtime safety
+   */
+  private createExtendedDataFactory(baseFactory?: RDF.DataFactory): ExtendedDataFactory {
+    const factory = baseFactory || new RdfDataFactoryClass();
+
+    // Check if the factory already has the variable method
+    if ('variable' in factory && typeof factory.variable === 'function') {
+      return factory as ExtendedDataFactory;
+    }
+
+    // Create a proper extended factory with the variable method
+    const extendedFactory = factory as ExtendedDataFactory;
+    extendedFactory.variable = (value: string): RDF.Variable => {
+      // Create a proper RDF variable term
+      return {
+        termType: 'Variable',
+        value,
+        equals: (other: RDF.Term) => other.termType === 'Variable' && other.value === value,
+      } as RDF.Variable;
+    };
+    return extendedFactory;
+  }
+
+  /**
    * Constructs a new MutationConverter.
    * @param context The normalized JSON-LD context used for IRI mapping.
    * @param dataFactory Optional RDF.DataFactory instance for creating RDF terms.
    */
   constructor(context: JsonLdContextNormalized, dataFactory?: RDF.DataFactory) {
     this.context = context;
-    const baseFactory = dataFactory || new RdfDataFactoryClass(); // Use aliased constructor
-
-    // Extend the factory to include variable creation if it doesn't exist
-    this.dataFactory = baseFactory as ExtendedDataFactory;
-
-    // Add variable method if it doesn't exist
-    if (!this.dataFactory.variable) {
-      this.dataFactory.variable = (value: string): RDF.Variable => ({
-        termType: 'Variable',
-        value: value,
-        equals: (other: RDF.Term): boolean =>
-          other.termType === 'Variable' && other.value === value,
-      });
-    }
-
+    this.dataFactory = this.createExtendedDataFactory(dataFactory);
     this.sparqlAlgebraFactory = new SparqlAlgebraFactory(this.dataFactory);
   }
 
@@ -233,6 +244,40 @@ export class MutationConverter {
   }
 
   /**
+   * Type guard to safely check if a ValueNode is an ObjectValueNode
+   */
+  private isObjectValueNode(node: ValueNode): node is ObjectValueNode {
+    return node.kind === Kind.OBJECT;
+  }
+
+  /**
+   * Type guard to safely check if a ValueNode is a StringValueNode
+   */
+  private isStringValueNode(node: ValueNode): node is StringValueNode {
+    return node.kind === Kind.STRING;
+  }
+
+  /**
+   * Safely get an ObjectValueNode with runtime validation
+   */
+  private getObjectValueNode(node: ValueNode, context: string): ObjectValueNode {
+    if (!this.isObjectValueNode(node)) {
+      throw new Error(`${context} must be an object. Found: ${node.kind}`);
+    }
+    return node;
+  }
+
+  /**
+   * Safely get a StringValueNode with runtime validation
+   */
+  private getStringValueNode(node: ValueNode, context: string): StringValueNode {
+    if (!this.isStringValueNode(node)) {
+      throw new Error(`${context} must be a string. Found: ${node.kind}`);
+    }
+    return node;
+  }
+
+  /**
    * Handles the conversion of a 'create' mutation field.
    * Populates the `quads` array with RDF.Quads for an INSERT DATA operation.
    * @param node The GraphQL FieldNode representing the create mutation.
@@ -242,18 +287,20 @@ export class MutationConverter {
    */
   private handleCreate(node: FieldNode, entityName: string, quads: RDF.Quad[]): void {
     const inputArg = node.arguments?.find(arg => arg.name.value === 'input');
-    if (!inputArg || inputArg.value.kind !== Kind.OBJECT) {
-      throw new Error(`Create mutation for ${entityName} must have an 'input' object argument.`);
+    if (!inputArg) {
+      throw new Error(`Create mutation for ${entityName} must have an 'input' argument.`);
     }
-    const inputObject = inputArg.value as ObjectValueNode;
+
+    const inputObject = this.getObjectValueNode(
+      inputArg.value,
+      `Create mutation input for ${entityName}`
+    );
     const entityTypeIri = this.getTypeIri(entityName);
 
     let localSubject: RDF.NamedNode | RDF.BlankNode;
     const idField = inputObject.fields.find(field => field.name.value === 'id');
     if (idField) {
-      if (idField.value.kind !== Kind.STRING)
-        throw new Error("Input 'id' field must be a String for create.");
-      const iriValue = (idField.value as StringValueNode).value;
+      const iriValue = this.getStringValueNode(idField.value, "Input 'id' field").value;
       // Basic IRI validation to prevent injection
       if (
         iriValue.includes('\n') ||
@@ -290,11 +337,11 @@ export class MutationConverter {
       // Handle relationship fields (like productId -> product or direct relationship fields)
       if (
         (fieldName.endsWith('Id') || this.isRelationshipField(fieldName)) &&
-        field.value.kind === Kind.STRING
+        this.isStringValueNode(field.value)
       ) {
         const relationshipName = fieldName.endsWith('Id') ? fieldName.slice(0, -2) : fieldName;
         const relationshipPredicateIri = this.getPredicateIri(relationshipName);
-        const relatedEntityIri = this.expandIri((field.value as StringValueNode).value);
+        const relatedEntityIri = this.expandIri(field.value.value);
         const relatedEntityNode = this.dataFactory.namedNode(relatedEntityIri);
         quads.push(
           this.dataFactory.quad(localSubject, relationshipPredicateIri, relatedEntityNode)
@@ -328,9 +375,13 @@ export class MutationConverter {
       return iri;
     }
 
-    // Get base from context
+    // Get base from context with proper type checking
     const contextRaw = this.context.getContextRaw();
-    const base = contextRaw['@base'] as string;
+    const base = contextRaw['@base'];
+
+    if (typeof base !== 'string') {
+      throw new Error(`Invalid @base in context: expected string, got ${typeof base}`);
+    }
 
     // If no base is defined, use the IRI as is
     if (!base) {
@@ -376,10 +427,13 @@ export class MutationConverter {
     wherePatterns: Algebra.Pattern[]
   ): void {
     const inputArg = node.arguments?.find(arg => arg.name.value === 'input');
-    if (!inputArg || inputArg.value.kind !== Kind.OBJECT) {
-      throw new Error(`Update mutation for ${entityName} must have an 'input' object argument.`);
+    if (!inputArg) {
+      throw new Error(`Update mutation for ${entityName} must have an 'input' argument.`);
     }
-    const inputObject = inputArg.value as ObjectValueNode;
+    const inputObject = this.getObjectValueNode(
+      inputArg.value,
+      `Update mutation input for ${entityName}`
+    );
     // const entityTypeIri = this.getTypeIri(entityName); // Currently unused
 
     // Optional: Add type assertion to where clause for safety

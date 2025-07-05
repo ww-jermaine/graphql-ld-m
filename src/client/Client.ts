@@ -5,6 +5,7 @@ import { print, ValueNode, Kind, ObjectFieldNode, NameNode } from 'graphql/langu
 import { ContextParser, JsonLdContextNormalized } from 'jsonld-context-parser';
 import { DataFactory } from 'rdf-data-factory';
 import { Converter as SparqlJsonToTreeConverter } from 'sparqljson-to-tree';
+import * as RDF from '@rdfjs/types';
 import {
   QueryEngine,
   ClientArgs,
@@ -27,11 +28,36 @@ export class Client {
   private readonly sparqlJsonToTreeConverter: SparqlJsonToTreeConverter;
   private readonly dataFactory: ExtendedDataFactory;
 
+  /**
+   * Create an extended data factory that properly implements the variable method
+   * This avoids unsafe type casting and provides runtime safety
+   */
+  private createExtendedDataFactory(baseFactory?: RDF.DataFactory): ExtendedDataFactory {
+    const factory = baseFactory || new DataFactory();
+
+    // Check if the factory already has the variable method
+    if ('variable' in factory && typeof factory.variable === 'function') {
+      return factory as ExtendedDataFactory;
+    }
+
+    // Create a proper extended factory with the variable method
+    const extendedFactory = factory as ExtendedDataFactory;
+    extendedFactory.variable = (value: string): RDF.Variable => {
+      // Create a proper RDF variable term
+      return {
+        termType: 'Variable',
+        value,
+        equals: (other: RDF.Term) => other.termType === 'Variable' && other.value === value,
+      } as RDF.Variable;
+    };
+    return extendedFactory;
+  }
+
   constructor(args: ClientArgs) {
     const parseOptions = args.baseIRI ? { baseIRI: args.baseIRI } : {};
     this.context = (args.contextParser || new ContextParser()).parse(args.context, parseOptions);
     this.queryEngine = args.queryEngine;
-    this.dataFactory = (args.dataFactory || new DataFactory()) as ExtendedDataFactory;
+    this.dataFactory = this.createExtendedDataFactory(args.dataFactory);
 
     this.graphqlToSparqlConverter =
       args.graphqlToSparqlConverter ||
@@ -143,6 +169,30 @@ export class Client {
   }
 
   /**
+   * Type guard to safely convert between different sparqlalgebrajs versions
+   * This addresses the version mismatch between graphql-to-sparql's bundled version
+   * and our direct dependency
+   */
+  private convertSparqlAlgebra(algebra: unknown): import('sparqlalgebrajs').Algebra.Operation {
+    // Runtime validation that it's actually a SPARQL algebra operation
+    if (!algebra || typeof algebra !== 'object') {
+      throw new QueryEngineError('Invalid SPARQL algebra object', 'INVALID_ALGEBRA');
+    }
+
+    // Check for required properties of a SPARQL algebra operation
+    const typedAlgebra = algebra as Record<string, unknown>;
+    if (!typedAlgebra.type || typeof typedAlgebra.type !== 'string') {
+      throw new QueryEngineError(
+        'SPARQL algebra missing required type property',
+        'INVALID_ALGEBRA'
+      );
+    }
+
+    // Safe conversion - we've validated the structure
+    return algebra as import('sparqlalgebrajs').Algebra.Operation;
+  }
+
+  /**
    * Convert a GraphQL query to SPARQL algebra and a singularize variables object.
    * @param {QueryArgsRaw} args Raw query arguments
    * @return {Promise<GraphQlToSparqlResult>} Promise resolving to SPARQL algebra and variables
@@ -167,7 +217,7 @@ export class Client {
       );
 
       return {
-        sparqlAlgebra: sparqlAlgebra as unknown as import('sparqlalgebrajs').Algebra.Operation,
+        sparqlAlgebra: this.convertSparqlAlgebra(sparqlAlgebra),
         singularizeVariables,
       };
     } catch (error) {
