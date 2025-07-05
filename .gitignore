@@ -35,9 +35,6 @@ yarn-error.log*
 # Docker
 .docker/
 
-# Documentation
-docs/
-
 # Cache
 .npm/
 .eslintcache

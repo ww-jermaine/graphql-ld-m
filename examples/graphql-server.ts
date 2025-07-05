@@ -11,6 +11,7 @@ const typeDefs = `#graphql
     price: Float!
     currency: String
     brand: String
+    reviews: [Review!]
   }
 
   type Review {
@@ -18,6 +19,7 @@ const typeDefs = `#graphql
     rating: Int!
     reviewText: String!
     reviewer: String!
+    product: Product
   }
 
   type MutationResult {
@@ -48,6 +50,7 @@ const typeDefs = `#graphql
     rating: Int!
     reviewText: String!
     reviewer: String!
+    productId: ID
   }
 
   type Query {
@@ -101,6 +104,26 @@ const context = {
     'rating': { '@id': 'schema:ratingValue', '@type': 'xsd:integer' },
     'reviewText': 'schema:reviewBody',
     'reviewer': 'schema:author',
+    
+    // Add relationship properties for proper linking
+    'reviews': { 
+      '@id': 'schema:review', 
+      '@type': '@id',
+      '@container': '@set'
+    },
+    'product': { 
+      '@id': 'schema:itemReviewed', 
+      '@type': '@id' 
+    },
+    'hasReview': { 
+      '@id': 'schema:review', 
+      '@type': '@id',
+      '@container': '@set'
+    },
+    'reviewOf': { 
+      '@id': 'schema:itemReviewed', 
+      '@type': '@id' 
+    }
   },
 };
 
@@ -120,28 +143,80 @@ const resolvers = {
     
     products: async () => {
       try {
+        // First, get all products without reviews
         const query = `
           query GetAllProducts {
             id @single
-            name
-            description
-            price
-            currency
-            brand
+            name @single
+            description @single
+            price @single
+            currency @single
+            brand @single
           }
         `;
         
         const result = await client.query({ query });
         
         if (result.data && Array.isArray(result.data)) {
-          return result.data.map((item: any) => ({
+          // Get all products first
+          const products = result.data.map((item: any) => ({
             id: item.id || '',
             name: Array.isArray(item.name) ? item.name[0] : item.name || '',
             description: Array.isArray(item.description) ? item.description[0] : item.description || '',
-            price: Array.isArray(item.price) ? item.price[0] : item.price || 0,
+            price: Array.isArray(item.price) ? parseFloat(item.price[0]) : parseFloat(item.price) || 0,
             currency: Array.isArray(item.currency) ? item.currency[0] : item.currency || 'USD',
-            brand: Array.isArray(item.brand) ? item.brand[0] : item.brand || ''
+            brand: Array.isArray(item.brand) ? item.brand[0] : item.brand || '',
+            reviews: [] as any[]
           }));
+          
+          // Then get reviews and match them to products
+          try {
+            const reviewsQuery = `
+              query GetAllReviews {
+                id @single
+                rating @single
+                reviewText @single
+                reviewer @single
+                product {
+                  id @single
+                }
+              }
+            `;
+            
+            const reviewsResult = await client.query({ query: reviewsQuery });
+            
+            if (reviewsResult.data && Array.isArray(reviewsResult.data)) {
+              // Group reviews by product ID
+              const reviewsByProduct: { [key: string]: any[] } = {};
+              
+              reviewsResult.data.forEach((review: any) => {
+                if (review.product && Array.isArray(review.product) && review.product.length > 0) {
+                  const productId = review.product[0].id;
+                  if (!reviewsByProduct[productId]) {
+                    reviewsByProduct[productId] = [];
+                  }
+                  reviewsByProduct[productId].push({
+                    id: review.id || '',
+                    rating: parseInt(review.rating) || 0,
+                    reviewText: review.reviewText || '',
+                    reviewer: review.reviewer || ''
+                  });
+                }
+              });
+              
+              // Attach reviews to products
+              products.forEach(product => {
+                if (reviewsByProduct[product.id]) {
+                  product.reviews = reviewsByProduct[product.id];
+                }
+              });
+            }
+          } catch (reviewError) {
+            console.error('Error fetching reviews:', reviewError);
+            // Continue without reviews
+          }
+          
+          return products;
         }
         
         return [];
@@ -161,6 +236,12 @@ const resolvers = {
             price @single
             currency @single
             brand @single
+            reviews {
+              id @single
+              rating @single
+              reviewText @single
+              reviewer @single
+            }
           }
         `;
         
@@ -177,7 +258,13 @@ const resolvers = {
               description: item.description || '',
               price: parseFloat(item.price) || 0,
               currency: item.currency || 'USD',
-              brand: item.brand || ''
+              brand: item.brand || '',
+              reviews: Array.isArray(item.reviews) ? item.reviews.map((review: any) => ({
+                id: review.id || '',
+                rating: parseInt(review.rating) || 0,
+                reviewText: review.reviewText || '',
+                reviewer: review.reviewer || ''
+              })) : []
             };
           }
         }
@@ -197,6 +284,14 @@ const resolvers = {
             rating @single
             reviewText @single
             reviewer @single
+            product {
+              id @single
+              name @single
+              description @single
+              price @single
+              currency @single
+              brand @single
+            }
           }
         `;
         
@@ -207,7 +302,15 @@ const resolvers = {
             id: item.id || '',
             rating: parseInt(item.rating) || 0,
             reviewText: item.reviewText || '',
-            reviewer: item.reviewer || ''
+            reviewer: item.reviewer || '',
+            product: item.product && Array.isArray(item.product) && item.product.length > 0 ? {
+              id: item.product[0].id || '',
+              name: item.product[0].name || '',
+              description: item.product[0].description || '',
+              price: parseFloat(item.product[0].price) || 0,
+              currency: item.product[0].currency || 'USD',
+              brand: item.product[0].brand || ''
+            } : null
           }));
         }
         
@@ -350,6 +453,7 @@ const resolvers = {
               rating: ${input.rating},
               reviewText: "${input.reviewText}",
               reviewer: "${input.reviewer}"
+              ${input.productId ? `,product: "${input.productId}"` : ''}
             }) {
               id
             }
@@ -434,7 +538,7 @@ async function startServer() {
   console.log(`🧪 Test with Insomnia using endpoint: ${url}`);
   console.log(`\n=== 📝 PRODUCT CRUD EXAMPLES ===\n`);
   
-  console.log(`📖 READ - Get all products:`);
+  console.log(`📖 READ - Get all products with their reviews:`);
   console.log(`query {
   products {
     id
@@ -443,6 +547,12 @@ async function startServer() {
     price
     currency
     brand
+    reviews {
+      id
+      rating
+      reviewText
+      reviewer
+    }
   }
 }\n`);
 
@@ -461,7 +571,7 @@ async function startServer() {
   }
 }\n`);
 
-  console.log(`📖 READ - Get specific product:`);
+  console.log(`📖 READ - Get specific product with reviews:`);
   console.log(`query {
   product(id: "product:<id generated by the server>") {
     id
@@ -470,6 +580,12 @@ async function startServer() {
     price
     currency
     brand
+    reviews {
+      id
+      rating
+      reviewText
+      reviewer
+    }
   }
   }\n`);
 
@@ -497,22 +613,31 @@ async function startServer() {
 
   console.log(`=== 📝 REVIEW CRUD EXAMPLES ===\n`);
   
-  console.log(`📖 READ - Get all reviews:`);
+  console.log(`📖 READ - Get all reviews with their products:`);
   console.log(`query {
   reviews {
     id
     rating
     reviewText
     reviewer
+    product {
+      id
+      name
+      description
+      price
+      currency
+      brand
+    }
   }
 }\n`);
 
-  console.log(`➕ CREATE - Add new review:`);
+  console.log(`➕ CREATE - Add new review (linked to a product):`);
   console.log(`mutation {
   createReview(input: {
     rating: 5
     reviewText: "Excellent product! Highly recommended."
     reviewer: "john@example.com"
+    productId: "product:<id generated by the server>"
   }) {
     success
     message

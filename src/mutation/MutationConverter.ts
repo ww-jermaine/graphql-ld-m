@@ -249,8 +249,28 @@ export class MutationConverter {
       if (fieldName === 'id') return;
 
       const predicateIri = this.getPredicateIri(fieldName);
-      const objectValue = this.parseValueNode(field.value);
-      quads.push(this.dataFactory.quad(localSubject, predicateIri, objectValue));
+      
+      // Handle relationship fields (like productId -> product or direct relationship fields)
+      if ((fieldName.endsWith('Id') || this.isRelationshipField(fieldName)) && field.value.kind === Kind.STRING) {
+        const relationshipName = fieldName.endsWith('Id') ? fieldName.slice(0, -2) : fieldName;
+        const relationshipPredicateIri = this.getPredicateIri(relationshipName);
+        const relatedEntityIri = this.expandIri((field.value as StringValueNode).value);
+        const relatedEntityNode = this.dataFactory.namedNode(relatedEntityIri);
+        quads.push(this.dataFactory.quad(localSubject, relationshipPredicateIri, relatedEntityNode));
+        
+        // Also create the inverse relationship if it exists in the context
+        try {
+          const inversePredicateIri = this.getInversePredicateIri(relationshipName);
+          if (inversePredicateIri) {
+            quads.push(this.dataFactory.quad(relatedEntityNode, inversePredicateIri, localSubject));
+          }
+        } catch (error) {
+          // Inverse relationship not found in context, skip
+        }
+      } else {
+        const objectValue = this.parseValueNode(field.value);
+        quads.push(this.dataFactory.quad(localSubject, predicateIri, objectValue));
+      }
     });
   }
 
@@ -466,4 +486,63 @@ export class MutationConverter {
       quad.graph
     );
   }
+
+  /**
+   * Attempts to find the inverse predicate IRI for a relationship.
+   * For example, if we have 'product' -> 'schema:itemReviewed', 
+   * we look for 'reviews' -> 'schema:review' as the inverse.
+   * @param relationshipName The name of the relationship.
+   * @returns The inverse predicate IRI or null if not found.
+   * @private
+   */
+  private getInversePredicateIri(relationshipName: string): RDF.NamedNode | null {
+    // Common inverse relationship patterns
+    const inversePatterns: Record<string, string> = {
+      'product': 'reviews',
+      'review': 'product',
+      'user': 'posts',
+      'post': 'user',
+      'author': 'works',
+      'work': 'author'
+    };
+
+    const inverseName = inversePatterns[relationshipName];
+    if (inverseName) {
+      try {
+        return this.getPredicateIri(inverseName);
+      } catch (error) {
+        // Inverse not found in context
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Checks if a field name represents a relationship field.
+   * This is used to identify fields that should be treated as object references
+   * rather than literal values.
+   * @param fieldName The field name to check.
+   * @returns True if the field represents a relationship.
+   * @private
+   */
+     private isRelationshipField(fieldName: string): boolean {
+     // Check if the field name maps to a relationship predicate in the context
+     try {
+       const contextTerm = this.context.getContextRaw()[fieldName];
+       
+       // If the context term has @type: @id, it's a relationship
+       if (typeof contextTerm === 'object' && contextTerm !== null && contextTerm['@type'] === '@id') {
+         return true;
+       }
+       
+       // Check common relationship field names
+       const relationshipFields = ['product', 'review', 'user', 'author', 'owner', 'creator', 'parent', 'child'];
+       return relationshipFields.includes(fieldName.toLowerCase());
+     } catch (error) {
+       // If we can't resolve the predicate, assume it's not a relationship
+       return false;
+     }
+   }
 }
