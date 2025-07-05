@@ -58,7 +58,10 @@ describe('MutationConverter', () => {
   const containsPattern = (patterns: any[], expected: Algebra.Pattern): boolean => {
     return patterns.some(
       p =>
-        p.subject && p.predicate && p.object && p.graph &&
+        p.subject &&
+        p.predicate &&
+        p.object &&
+        p.graph &&
         p.subject.equals(expected.subject) &&
         p.predicate.equals(expected.predicate) &&
         p.object.equals(expected.object) &&
@@ -434,10 +437,10 @@ describe('MutationConverter', () => {
       // Since we can't easily create a VARIABLE or ENUM kind in normal GraphQL,
       // we'll test this by patching the parseValueNode method
       const originalParseValueNode = (converter as any).parseValueNode;
-      
+
       try {
         // Override parseValueNode to call the original with a mocked unsupported value
-        (converter as any).parseValueNode = jest.fn().mockImplementation((valueNode) => {
+        (converter as any).parseValueNode = jest.fn().mockImplementation(valueNode => {
           if (valueNode.kind === 'VARIABLE') {
             return originalParseValueNode.call(converter, valueNode);
           }
@@ -446,7 +449,7 @@ describe('MutationConverter', () => {
 
         // Create a mutation and manually test the parseValueNode with unsupported kind
         const unsupportedValueNode = { kind: 'VARIABLE', name: { value: 'test' } } as any;
-        
+
         expect(() => {
           (converter as any).parseValueNode(unsupportedValueNode);
         }).toThrow('Unsupported GraphQL value kind: VARIABLE');
@@ -479,13 +482,13 @@ describe('MutationConverter', () => {
       // This should not throw - should use @vocab fallback
       const result = vocabConverter.convert(mutation);
       expect(result.type).toBe('compositeupdate');
-      
+
       const updateOp = result.updates[0] as any;
       expect(updateOp.insert).toBeDefined();
-      
+
       // Should have used vocab + type name
-      const typeQuad = updateOp.insert.find((quad: any) => 
-        quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+      const typeQuad = updateOp.insert.find(
+        (quad: any) => quad.predicate.value === 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
       );
       expect(typeQuad.object.value).toBe('http://vocab.example.org/CustomType');
     });

@@ -176,9 +176,12 @@ describe('QueryEngineSparqlEndpoint', () => {
         json: async () => mockResponse,
       });
 
-      const result = await queryEngine.query(sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
-      ]), { maxResults: 3 });
+      const result = await queryEngine.query(
+        sparqlAlgebraFactory.createBgp([
+          sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
+        ]),
+        { maxResults: 3 }
+      );
 
       expect(result.results.bindings).toHaveLength(3);
       expect(result.results.bindings[0].s.value).toBe('http://example.org/1');
@@ -202,9 +205,11 @@ describe('QueryEngineSparqlEndpoint', () => {
         json: async () => mockResponse,
       });
 
-      const result = await queryEngine.query(sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
-      ]));
+      const result = await queryEngine.query(
+        sparqlAlgebraFactory.createBgp([
+          sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
+        ])
+      );
 
       expect(result.results.bindings).toHaveLength(3);
     });

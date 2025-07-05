@@ -106,7 +106,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Create mutation input for Person must be an object. Found: StringValue"
+        'Create mutation input for Person must be an object. Found: StringValue'
       );
     });
 
@@ -134,7 +134,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Update mutation input for Person must be an object. Found: StringValue"
+        'Update mutation input for Person must be an object. Found: StringValue'
       );
     });
   });

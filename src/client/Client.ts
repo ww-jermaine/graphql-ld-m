@@ -126,14 +126,16 @@ export class Client {
         const errorMessage = error.message;
         throw new QueryEngineError(`Mutation execution failed: ${errorMessage}`, 'MUTATION_ERROR');
       }
-      
+
       // For other errors, return them in the result
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       return {
         data: null,
-        errors: [new GraphQLError(errorMessage, {
-          extensions: { code: 'MUTATION_ERROR' }
-        })]
+        errors: [
+          new GraphQLError(errorMessage, {
+            extensions: { code: 'MUTATION_ERROR' },
+          }),
+        ],
       };
     }
   }

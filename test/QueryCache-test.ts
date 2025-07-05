@@ -171,25 +171,23 @@ describe('QueryCache', () => {
   describe('Cache Eviction and Advanced Features', () => {
     const mockResult = {
       head: { vars: ['s'] },
-      results: { 
-        bindings: [
-          { s: { type: 'uri', value: 'http://example.org/test' } }
-        ]
-      }
+      results: {
+        bindings: [{ s: { type: 'uri', value: 'http://example.org/test' } }],
+      },
     };
 
     test('should handle cache eviction when maxSize is reached', () => {
       const cache = new QueryCache({ maxEntries: 2 }); // Small cache for testing eviction
-      
+
       // Add first item
       cache.set('key1', mockResult);
       expect(cache.get('key1')).toEqual(mockResult);
-      
+
       // Add second item
       cache.set('key2', mockResult);
       expect(cache.get('key1')).toEqual(mockResult);
       expect(cache.get('key2')).toEqual(mockResult);
-      
+
       // Add third item - should evict the first one
       cache.set('key3', mockResult);
       expect(cache.get('key1')).toBeUndefined(); // Evicted
@@ -199,39 +197,39 @@ describe('QueryCache', () => {
 
     test('should handle cache eviction with TTL expiration', () => {
       jest.useFakeTimers();
-      
+
       const cache = new QueryCache({ maxEntries: 100, defaultTtl: 1000 }); // 1 second TTL
-      
+
       // Add an item
       cache.set('key1', mockResult);
       expect(cache.get('key1')).toEqual(mockResult);
-      
+
       // Fast forward time by 500ms - should still be valid
       jest.advanceTimersByTime(500);
       expect(cache.get('key1')).toEqual(mockResult);
-      
+
       // Fast forward time by another 600ms (total 1100ms) - should be expired
       jest.advanceTimersByTime(600);
       expect(cache.get('key1')).toBeUndefined();
-      
+
       jest.useRealTimers();
     });
 
     test('should handle cache statistics and metrics', () => {
       const cache = new QueryCache({ maxEntries: 10 });
-      
+
       // Initially empty cache
       expect(cache.getStats().size).toBe(0);
-      
+
       // Add items
       cache.set('key1', mockResult);
       cache.set('key2', mockResult);
       expect(cache.getStats().size).toBe(2);
-      
+
       // Test hits and misses
       expect(cache.get('key1')).toEqual(mockResult); // Hit
       expect(cache.get('nonexistent')).toBeUndefined(); // Miss
-      
+
       // Clear cache
       cache.clear();
       expect(cache.getStats().size).toBe(0);
@@ -239,20 +237,20 @@ describe('QueryCache', () => {
 
     test('should handle edge cases with empty or undefined values', () => {
       const cache = new QueryCache({ maxEntries: 10 });
-      
+
       // Test with empty result
       const emptyResult = {
         head: { vars: [] },
-        results: { bindings: [] }
+        results: { bindings: [] },
       };
-      
+
       cache.set('empty', emptyResult);
       expect(cache.get('empty')).toEqual(emptyResult);
-      
+
       // Test with undefined key
       expect(cache.get('')).toBeUndefined();
       expect(cache.get('') === undefined).toBe(true);
-      
+
       // Test with special characters in key
       const specialKey = 'SELECT * FROM <http://example.org/graph>';
       cache.set(specialKey, mockResult);
@@ -261,21 +259,19 @@ describe('QueryCache', () => {
 
     test('should handle cache key collision and overwrites', () => {
       const cache = new QueryCache({ maxEntries: 10 });
-      
+
       // Set initial value
       cache.set('key1', mockResult);
       expect(cache.get('key1')).toEqual(mockResult);
-      
+
       // Overwrite with new value
       const newResult = {
         head: { vars: ['name'] },
-        results: { 
-          bindings: [
-            { name: { type: 'literal', value: 'Updated' } }
-          ]
-        }
+        results: {
+          bindings: [{ name: { type: 'literal', value: 'Updated' } }],
+        },
       };
-      
+
       cache.set('key1', newResult);
       expect(cache.get('key1')).toEqual(newResult);
       expect(cache.get('key1')).not.toEqual(mockResult);
@@ -283,21 +279,19 @@ describe('QueryCache', () => {
 
     test('should handle cache performance with large numbers of items', () => {
       const cache = new QueryCache({ maxEntries: 1000 });
-      
+
       // Add many items
       for (let i = 0; i < 500; i++) {
         cache.set(`key${i}`, {
           head: { vars: ['id'] },
-          results: { 
-            bindings: [
-              { id: { type: 'literal', value: i.toString() } }
-            ]
-          }
+          results: {
+            bindings: [{ id: { type: 'literal', value: i.toString() } }],
+          },
         });
       }
-      
+
       expect(cache.getStats().size).toBe(500);
-      
+
       // Verify random access
       expect(cache.get('key100')).toBeDefined();
       expect(cache.get('key250')).toBeDefined();
@@ -307,13 +301,13 @@ describe('QueryCache', () => {
 
     test('should handle memory cleanup on delete', () => {
       const cache = new QueryCache({ maxEntries: 10 });
-      
+
       // Add multiple items
       cache.set('key1', mockResult);
       cache.set('key2', mockResult);
       cache.set('key3', mockResult);
       expect(cache.getStats().size).toBe(3);
-      
+
       // Delete specific item
       cache.delete('key2');
       expect(cache.get('key1')).toEqual(mockResult);
@@ -324,22 +318,22 @@ describe('QueryCache', () => {
 
     test('should handle concurrent access patterns', () => {
       const cache = new QueryCache({ maxEntries: 10 });
-      
+
       // Simulate concurrent access
       const promises = [];
       for (let i = 0; i < 10; i++) {
-        promises.push(Promise.resolve().then(() => {
-          cache.set(`concurrent${i}`, {
-            head: { vars: ['id'] },
-            results: { 
-              bindings: [
-                { id: { type: 'literal', value: i.toString() } }
-              ]
-            }
-          });
-        }));
+        promises.push(
+          Promise.resolve().then(() => {
+            cache.set(`concurrent${i}`, {
+              head: { vars: ['id'] },
+              results: {
+                bindings: [{ id: { type: 'literal', value: i.toString() } }],
+              },
+            });
+          })
+        );
       }
-      
+
       return Promise.all(promises).then(() => {
         expect(cache.getStats().size).toBe(10);
         for (let i = 0; i < 10; i++) {
