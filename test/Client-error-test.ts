@@ -4,17 +4,17 @@ import { DataFactory } from 'rdf-data-factory';
 
 describe('Client Error Handling', () => {
   const mockContext = {
-    "@context": {
-      "name": "http://schema.org/name",
-      "Person": "http://schema.org/Person",
+    '@context': {
+      name: 'http://schema.org/name',
+      Person: 'http://schema.org/Person',
       // Add a malformed IRI to trigger a real error
-      "invalid": "not a valid IRI"
-    }
+      invalid: 'not a valid IRI',
+    },
   };
 
   const mockQueryEngine: QueryEngine = {
     query: jest.fn(),
-    update: jest.fn()
+    update: jest.fn(),
   };
 
   const dataFactory = new DataFactory();
@@ -25,7 +25,7 @@ describe('Client Error Handling', () => {
     client = new Client({
       context: mockContext,
       queryEngine: mockQueryEngine,
-      dataFactory
+      dataFactory,
     });
     jest.clearAllMocks();
   });
@@ -39,11 +39,13 @@ describe('Client Error Handling', () => {
           }
         }
       `;
-      
-      await expect(client.mutate({
-        query: mutation,
-        variables: { name: 'Test' }
-      })).rejects.toThrow('GraphQL variables in mutations are not yet fully supported');
+
+      await expect(
+        client.mutate({
+          query: mutation,
+          variables: { name: 'Test' },
+        })
+      ).rejects.toThrow('GraphQL variables in mutations are not yet fully supported');
     });
 
     test('should handle query engine update failure', async () => {
@@ -76,36 +78,36 @@ describe('Client Error Handling', () => {
       const queryEngineError = new QueryEngineError('Engine specific error', 'TEST_ERROR');
       (mockQueryEngine.update as jest.Mock).mockRejectedValue(queryEngineError);
 
-      await expect(client.mutate({ query: mutation }))
-        .rejects.toThrow(queryEngineError);
+      await expect(client.mutate({ query: mutation })).rejects.toThrow(queryEngineError);
     });
   });
 
   describe('query() error handling', () => {
     test('should handle SPARQL response conversion errors', async () => {
       const query = '{ person { name } }';
-      (mockQueryEngine.query as jest.Mock).mockResolvedValue({ 
-        invalid: 'response format'
+      (mockQueryEngine.query as jest.Mock).mockResolvedValue({
+        invalid: 'response format',
       });
 
-      await expect(client.query({ query }))
-        .rejects.toThrow('Query execution failed');
+      await expect(client.query({ query })).rejects.toThrow('Query execution failed');
     });
 
     test('should handle GraphQL to SPARQL conversion errors', async () => {
       const invalidQuery = '{ invalid { syntax }';
-      
-      await expect(client.query({ query: invalidQuery }))
-        .rejects.toThrow('GraphQL to SPARQL conversion failed');
+
+      await expect(client.query({ query: invalidQuery })).rejects.toThrow(
+        'GraphQL to SPARQL conversion failed'
+      );
     });
   });
 
   describe('graphQlToSparql() error handling', () => {
     test('should handle invalid GraphQL syntax', async () => {
       const invalidQuery = '{ invalid { syntax';
-      
-      await expect(client.graphQlToSparql({ query: invalidQuery }))
-        .rejects.toThrow('GraphQL to SPARQL conversion failed');
+
+      await expect(client.graphQlToSparql({ query: invalidQuery })).rejects.toThrow(
+        'GraphQL to SPARQL conversion failed'
+      );
     });
 
     test('should handle context resolution errors', async () => {
@@ -117,9 +119,10 @@ describe('Client Error Handling', () => {
           }
         }
       `;
-      
-      await expect(client.graphQlToSparql({ query }))
-        .rejects.toThrow('GraphQL to SPARQL conversion failed');
+
+      await expect(client.graphQlToSparql({ query })).rejects.toThrow(
+        'GraphQL to SPARQL conversion failed'
+      );
     });
   });
 
@@ -129,16 +132,16 @@ describe('Client Error Handling', () => {
       const complexVariables = {
         input: {
           nested: {
-            array: [1, "test", true, null],
-            object: { key: "value" }
-          }
-        }
+            array: [1, 'test', true, null],
+            object: { key: 'value' },
+          },
+        },
       };
 
       // This should not throw an error
-      await client.graphQlToSparql({ 
+      await client.graphQlToSparql({
         query,
-        variables: complexVariables
+        variables: complexVariables,
       });
     });
 
@@ -147,34 +150,27 @@ describe('Client Error Handling', () => {
       const variables = {
         nullValue: null,
         undefinedValue: undefined,
-        emptyString: ""
+        emptyString: '',
       };
 
       // This should not throw an error
       await client.graphQlToSparql({
         query,
-        variables
+        variables,
       });
     });
 
     test('should handle array with mixed types', async () => {
       const query = '{ person { name } }';
       const variables = {
-        mixedArray: [
-          123,
-          "string",
-          true,
-          null,
-          { nested: "object" },
-          [1, 2, 3]
-        ]
+        mixedArray: [123, 'string', true, null, { nested: 'object' }, [1, 2, 3]],
       };
 
       // This should not throw an error
       await client.graphQlToSparql({
         query,
-        variables
+        variables,
       });
     });
   });
-}); 
+});

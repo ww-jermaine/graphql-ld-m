@@ -1,16 +1,19 @@
-import { DocumentNode } from "graphql/language";
-import { Algebra } from "sparqlalgebrajs";
-import { JsonLdContext, ContextParser } from "jsonld-context-parser";
-import { Converter as GraphQlToSparqlConverter } from "graphql-to-sparql";
-import { Converter as SparqlJsonToTreeConverter } from "sparqljson-to-tree";
-import * as RDF from "@rdfjs/types";
-import { ISingularizeVariables } from "graphql-to-sparql/lib/IConvertContext";
+import { DocumentNode } from 'graphql/language';
+import { Algebra } from 'sparqlalgebrajs';
+import { JsonLdContext, ContextParser } from 'jsonld-context-parser';
+import { Converter as GraphQlToSparqlConverter } from 'graphql-to-sparql';
+import { Converter as SparqlJsonToTreeConverter } from 'sparqljson-to-tree';
+import * as RDF from '@rdfjs/types';
+import { ISingularizeVariables } from 'graphql-to-sparql/lib/IConvertContext';
 
 /**
  * Custom error type for query engine related errors
  */
 export class QueryEngineError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string
+  ) {
     super(message);
     this.name = 'QueryEngineError';
   }
@@ -33,12 +36,15 @@ export interface SparqlQueryResult {
     vars: string[];
   };
   results: {
-    bindings: Record<string, { 
-      type: string;
-      value: string;
-      datatype?: string;
-      "xml:lang"?: string;
-    }>[];
+    bindings: Record<
+      string,
+      {
+        type: string;
+        value: string;
+        datatype?: string;
+        'xml:lang'?: string;
+      }
+    >[];
   };
 }
 
@@ -78,22 +84,22 @@ export interface QueryEngine {
 export interface ClientArgs {
   /** A JSON-LD context that may be an object, array, or string URL to remote context */
   readonly context: JsonLdContext;
-  
+
   /** Query engine used to execute SPARQL queries */
   readonly queryEngine: QueryEngine;
-  
+
   /** Optional base IRI */
   readonly baseIRI?: string;
-  
+
   /** Optional data factory for RDF quads and terms */
   readonly dataFactory?: RDF.DataFactory;
-  
+
   /** Optional JSON-LD context parser to override defaults */
   readonly contextParser?: ContextParser;
-  
+
   /** Optional GraphQL to SPARQL converter to override defaults */
   readonly graphqlToSparqlConverter?: GraphQlToSparqlConverter;
-  
+
   /** Optional SPARQL-JSON to GraphQL tree converter to override defaults */
   readonly sparqlJsonToTreeConverter?: SparqlJsonToTreeConverter;
 }
@@ -123,4 +129,4 @@ export interface ExtendedDataFactory extends RDF.DataFactory {
 /**
  * Union type for query arguments
  */
-export type QueryArgs = QueryArgsRaw | QueryArgsSparql; 
+export type QueryArgs = QueryArgsRaw | QueryArgsSparql;

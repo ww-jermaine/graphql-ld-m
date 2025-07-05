@@ -1,4 +1,8 @@
-import { IriValidator, GraphQLInputValidator, SparqlValidator } from '../src/shared/validation/InputValidator';
+import {
+  IriValidator,
+  GraphQLInputValidator,
+  SparqlValidator,
+} from '../src/shared/validation/InputValidator';
 import { ValidationError } from '../src/shared/errors/GraphQLLDError';
 
 describe('IriValidator', () => {
@@ -10,7 +14,7 @@ describe('IriValidator', () => {
         'http://example.com/path?query=value',
         'http://example.com/path#fragment',
         'urn:isbn:0-486-27557-4',
-        'file:///path/to/file'
+        'file:///path/to/file',
       ];
 
       validIRIs.forEach(iri => {
@@ -29,7 +33,7 @@ describe('IriValidator', () => {
         'http://#',
         'http://example.com/<script>',
         'http://example.com/"quote"',
-        'http://example.com/\nlinebreak'
+        'http://example.com/\nlinebreak',
       ];
 
       invalidIRIs.forEach(iri => {
@@ -60,7 +64,7 @@ describe('GraphQLInputValidator', () => {
         { id: 'http://example.com/123', value: 42 },
         { nested: { field: true } },
         { array: [1, 2, 3] },
-        { mixed: [{ id: 'http://example.com/1' }, { id: 'http://example.com/2' }] }
+        { mixed: [{ id: 'http://example.com/1' }, { id: 'http://example.com/2' }] },
       ];
 
       validInputs.forEach(input => {
@@ -82,11 +86,13 @@ describe('GraphQLInputValidator', () => {
         true,
         [1, 2, 3],
         { func: () => {} },
-        { date: new Date() }
+        { date: new Date() },
       ];
 
       invalidInputs.forEach(input => {
-        expect(() => GraphQLInputValidator.validateMutationInput(input as any)).toThrow(ValidationError);
+        expect(() => GraphQLInputValidator.validateMutationInput(input as any)).toThrow(
+          ValidationError
+        );
       });
     });
 
@@ -94,18 +100,15 @@ describe('GraphQLInputValidator', () => {
       const input = {
         user: {
           id: 'not-a-uri',
-          name: 'test'
-        }
+          name: 'test',
+        },
       };
       expect(() => GraphQLInputValidator.validateMutationInput(input)).toThrow(ValidationError);
     });
 
     it('should validate array items', () => {
       const input = {
-        users: [
-          { id: 'http://example.com/1' },
-          { id: 'not-a-uri' }
-        ]
+        users: [{ id: 'http://example.com/1' }, { id: 'not-a-uri' }],
       };
       expect(() => GraphQLInputValidator.validateMutationInput(input)).toThrow(ValidationError);
     });
@@ -119,7 +122,7 @@ describe('SparqlValidator', () => {
         'SELECT * WHERE { ?s ?p ?o }',
         'SELECT ?name WHERE { ?person <http://schema.org/name> ?name }',
         'CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }',
-        'SELECT * WHERE { ?s ?p ?o } LIMIT 100'
+        'SELECT * WHERE { ?s ?p ?o } LIMIT 100',
       ];
 
       validQueries.forEach(query => {
@@ -140,7 +143,7 @@ describe('SparqlValidator', () => {
         'CLEAR GRAPH <http://example.com>',
         'DELETE WHERE { ?s ?p ?o }',
         'DELETE DATA { <s> <p> <o> }',
-        'INSERT DATA { <s> <p> <o> }'
+        'INSERT DATA { <s> <p> <o> }',
       ];
 
       forbiddenQueries.forEach(query => {
@@ -155,7 +158,7 @@ describe('SparqlValidator', () => {
         'INVALID QUERY',
         'ASK { ?s ?p ?o }',
         'UPDATE WHERE { ?s ?p ?o }',
-        'SELECT * { invalid syntax }'
+        'SELECT * { invalid syntax }',
       ];
 
       invalidQueries.forEach(query => {

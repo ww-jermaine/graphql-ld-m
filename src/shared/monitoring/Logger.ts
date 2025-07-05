@@ -42,7 +42,7 @@ export class Logger {
       enableConsole: true,
       enableMetrics: false,
       minLevel: LogLevel.INFO,
-      ...config
+      ...config,
     };
     this.metrics = new Map();
   }
@@ -57,7 +57,7 @@ export class Logger {
       // Update config if provided
       Logger.instance.config = {
         ...Logger.instance.config,
-        ...config
+        ...config,
       };
     }
     return Logger.instance;
@@ -118,7 +118,12 @@ export class Logger {
   /**
    * Internal logging implementation
    */
-  private log(level: LogLevel, message: string, context?: Record<string, unknown>, error?: Error): void {
+  private log(
+    level: LogLevel,
+    message: string,
+    context?: Record<string, unknown>,
+    error?: Error
+  ): void {
     if (this.shouldLog(level)) {
       const entry: LogEntry = {
         timestamp: new Date().toISOString(),
@@ -154,14 +159,14 @@ export class Logger {
    */
   private writeToConsole(entry: LogEntry): void {
     const { timestamp, level, message, context, error } = entry;
-    
+
     let output = `${timestamp} [${level.toUpperCase()}] ${message}`;
-    
+
     if (context) {
       try {
         const getCircularReplacer = () => {
           const seen = new WeakSet();
-          return (_: string, value: any) => {
+          return (_: string, value: unknown): unknown => {
             if (typeof value === 'object' && value !== null) {
               if (seen.has(value)) {
                 return '[Circular]';
@@ -176,7 +181,7 @@ export class Logger {
         output += '\nContext: [Unable to stringify context]';
       }
     }
-    
+
     if (error) {
       output += `\nError: ${error.message}`;
       if (error.stack) {
@@ -199,4 +204,4 @@ export class Logger {
         break;
     }
   }
-} 
+}

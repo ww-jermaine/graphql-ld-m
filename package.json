@@ -29,12 +29,15 @@
     "dependencies": {
         "@apollo/server": "^4.12.2",
         "@rdfjs/types": "^1.1.0",
-        "graphql": "15.8.0",
-        "graphql-to-sparql": "2.2.0",
+        "graphql": "^16.6.0",
+        "graphql-to-sparql": "^2.3.0",
         "jsonld-context-parser": "^2.1.5",
         "rdf-data-factory": "^1.1.1",
         "sparqlalgebrajs": "^4.0.5",
         "sparqljson-to-tree": "^2.1.0"
+    },
+    "overrides": {
+        "graphql": "^16.6.0"
     },
     "devDependencies": {
         "@types/jest": "^29.5.12",

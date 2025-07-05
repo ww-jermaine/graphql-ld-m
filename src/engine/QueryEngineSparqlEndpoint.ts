@@ -4,7 +4,7 @@ import {
   QueryEngineOptions,
   QueryEngineError,
   SparqlQueryResult,
-  SparqlUpdateResult
+  SparqlUpdateResult,
 } from '../types/interfaces';
 
 // Declare global fetch for Node.js 18+ built-in fetch support
@@ -16,7 +16,7 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
   private readonly defaultOptions: QueryEngineOptions = {
     timeout: 30000, // 30 seconds default timeout
     maxResults: 1000,
-    validateQuery: true
+    validateQuery: true,
   };
 
   constructor(endpointUrl: string, updateEndpointUrl?: string) {
@@ -24,10 +24,13 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
     this.updateEndpointUrl = updateEndpointUrl || endpointUrl;
   }
 
-  async query(sparqlAlgebra: Algebra.Operation, options?: QueryEngineOptions): Promise<SparqlQueryResult> {
+  async query(
+    sparqlAlgebra: Algebra.Operation,
+    options?: QueryEngineOptions
+  ): Promise<SparqlQueryResult> {
     const mergedOptions = { ...this.defaultOptions, ...options };
     const sparql = toSparql(sparqlAlgebra);
-    
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -40,10 +43,10 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
           method: 'POST',
           headers: {
             'Content-Type': 'application/sparql-query',
-            'Accept': 'application/sparql-results+json'
+            Accept: 'application/sparql-results+json',
           },
           body: sparql,
-          signal: controller.signal
+          signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
@@ -56,7 +59,7 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
           );
         }
 
-        const result = await response.json() as unknown;
+        const result = (await response.json()) as unknown;
 
         // Type guard for SPARQL JSON result
         if (!this.isSparqlQueryResult(result)) {
@@ -81,26 +84,17 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
       }
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new QueryEngineError(
-            `Query timed out after ${mergedOptions.timeout}ms`,
-            'TIMEOUT'
-          );
+          throw new QueryEngineError(`Query timed out after ${mergedOptions.timeout}ms`, 'TIMEOUT');
         }
-        throw new QueryEngineError(
-          `Query execution failed: ${error.message}`,
-          'EXECUTION_ERROR'
-        );
+        throw new QueryEngineError(`Query execution failed: ${error.message}`, 'EXECUTION_ERROR');
       }
-      throw new QueryEngineError(
-        'Unknown error occurred during query execution',
-        'UNKNOWN_ERROR'
-      );
+      throw new QueryEngineError('Unknown error occurred during query execution', 'UNKNOWN_ERROR');
     }
   }
 
   async update(sparqlUpdate: string, options?: QueryEngineOptions): Promise<SparqlUpdateResult> {
     const mergedOptions = { ...this.defaultOptions, ...options };
-    
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => {
@@ -112,14 +106,14 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
         const response = await fetch(this.updateEndpointUrl, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/sparql-update'
+            'Content-Type': 'application/sparql-update',
           },
           body: sparqlUpdate,
-          signal: controller.signal
+          signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new QueryEngineError(
@@ -127,10 +121,10 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
             `HTTP_${response.status}`
           );
         }
-        
-        return { 
-          success: true, 
-          message: "Update operation completed successfully." 
+
+        return {
+          success: true,
+          message: 'Update operation completed successfully.',
         };
       } finally {
         clearTimeout(timeoutId);
@@ -146,15 +140,9 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
             'TIMEOUT'
           );
         }
-        throw new QueryEngineError(
-          `Update operation failed: ${error.message}`,
-          'EXECUTION_ERROR'
-        );
+        throw new QueryEngineError(`Update operation failed: ${error.message}`, 'EXECUTION_ERROR');
       }
-      throw new QueryEngineError(
-        'Unknown error occurred during update operation',
-        'UNKNOWN_ERROR'
-      );
+      throw new QueryEngineError('Unknown error occurred during update operation', 'UNKNOWN_ERROR');
     }
   }
 
@@ -163,18 +151,18 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
    */
   private isSparqlQueryResult(result: unknown): result is SparqlQueryResult {
     if (!result || typeof result !== 'object') return false;
-    
+
     const r = result as Record<string, unknown>;
     if (!r['head'] || typeof r['head'] !== 'object') return false;
-    
+
     const head = r['head'] as Record<string, unknown>;
     if (!Array.isArray(head['vars'])) return false;
-    
+
     if (!r['results'] || typeof r['results'] !== 'object') return false;
-    
+
     const results = r['results'] as Record<string, unknown>;
     if (!Array.isArray(results['bindings'])) return false;
-    
+
     return true;
   }
 }

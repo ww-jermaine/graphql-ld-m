@@ -3,7 +3,7 @@ import { JsonLdContextNormalized } from 'jsonld-context-parser/lib/JsonLdContext
 import { ContextParser } from 'jsonld-context-parser';
 import { DataFactory } from 'rdf-data-factory';
 import * as RDF from '@rdfjs/types';
-import { Algebra, Factory } from "sparqlalgebrajs"; // Import Factory directly, no alias
+import { Algebra, Factory } from 'sparqlalgebrajs'; // Import Factory directly, no alias
 
 const DF = new DataFactory(); // Global data factory for tests
 
@@ -31,7 +31,7 @@ describe('MutationConverter', () => {
         inStock: { '@id': 'ex:inStock', '@type': 'xsd:boolean' },
         description: 'ex:description',
         unknownField: 'ex:unknownField',
-        friend: {'@id': 'foaf:knows', '@type': '@id'},
+        friend: { '@id': 'foaf:knows', '@type': '@id' },
         createUser: 'ex:createUser',
         updateUser: 'ex:updateUser',
         deleteUser: 'ex:deleteUser',
@@ -55,14 +55,14 @@ describe('MutationConverter', () => {
 
   // Helper to check if a pattern exists in a patterns array (comparing by quad properties)
   const containsPattern = (patterns: any[], expected: Algebra.Pattern): boolean => {
-    return patterns.some(p => 
-      p.subject.equals(expected.subject) && 
-      p.predicate.equals(expected.predicate) && 
-      p.object.equals(expected.object) &&
-      p.graph.equals(expected.graph)
+    return patterns.some(
+      p =>
+        p.subject.equals(expected.subject) &&
+        p.predicate.equals(expected.predicate) &&
+        p.object.equals(expected.object) &&
+        p.graph.equals(expected.graph)
     );
   };
-
 
   describe('Create Mutations', () => {
     it('should convert a simple create mutation with client-provided ID', () => {
@@ -90,9 +90,22 @@ describe('MutationConverter', () => {
       const agePredicate = DF.namedNode('http://example.org/age');
 
       const patterns = updateOp.insert;
-      expect(containsPattern(patterns, pattern(expectedSubject, typePredicate, userType))).toBe(true);
-      expect(containsPattern(patterns, pattern(expectedSubject, namePredicate, DF.literal('Alice')))).toBe(true);
-      expect(containsPattern(patterns, pattern(expectedSubject, agePredicate, DF.literal('30', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer'))))).toBe(true);
+      expect(containsPattern(patterns, pattern(expectedSubject, typePredicate, userType))).toBe(
+        true
+      );
+      expect(
+        containsPattern(patterns, pattern(expectedSubject, namePredicate, DF.literal('Alice')))
+      ).toBe(true);
+      expect(
+        containsPattern(
+          patterns,
+          pattern(
+            expectedSubject,
+            agePredicate,
+            DF.literal('30', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer'))
+          )
+        )
+      ).toBe(true);
     });
 
     it('should convert a create mutation with auto-generated ID (blank node)', () => {
@@ -118,7 +131,9 @@ describe('MutationConverter', () => {
 
       const patterns = updateOp.insert;
       expect(containsPattern(patterns, pattern(subject, typePredicate, taskType))).toBe(true);
-      expect(containsPattern(patterns, pattern(subject, titlePredicate, DF.literal('New Task')))).toBe(true);
+      expect(
+        containsPattern(patterns, pattern(subject, titlePredicate, DF.literal('New Task')))
+      ).toBe(true);
     });
 
     it('should convert a create mutation with various data types', () => {
@@ -144,10 +159,39 @@ describe('MutationConverter', () => {
       const inStockPredicate = DF.namedNode('http://example.org/inStock');
 
       const patterns = updateOp.insert;
-      expect(containsPattern(patterns, pattern(subject, DF.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'), productType))).toBe(true);
-      expect(containsPattern(patterns, pattern(subject, namePredicate, DF.literal('Laptop')))).toBe(true);
-      expect(containsPattern(patterns, pattern(subject, pricePredicate, DF.literal("1200.50", DF.namedNode('http://www.w3.org/2001/XMLSchema#double'))))).toBe(true);
-      expect(containsPattern(patterns, pattern(subject, inStockPredicate, DF.literal("true", DF.namedNode('http://www.w3.org/2001/XMLSchema#boolean'))))).toBe(true);
+      expect(
+        containsPattern(
+          patterns,
+          pattern(
+            subject,
+            DF.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+            productType
+          )
+        )
+      ).toBe(true);
+      expect(containsPattern(patterns, pattern(subject, namePredicate, DF.literal('Laptop')))).toBe(
+        true
+      );
+      expect(
+        containsPattern(
+          patterns,
+          pattern(
+            subject,
+            pricePredicate,
+            DF.literal('1200.50', DF.namedNode('http://www.w3.org/2001/XMLSchema#double'))
+          )
+        )
+      ).toBe(true);
+      expect(
+        containsPattern(
+          patterns,
+          pattern(
+            subject,
+            inStockPredicate,
+            DF.literal('true', DF.namedNode('http://www.w3.org/2001/XMLSchema#boolean'))
+          )
+        )
+      ).toBe(true);
     });
   });
 
@@ -174,17 +218,21 @@ describe('MutationConverter', () => {
       expect(Array.isArray(op.delete)).toBe(true);
       expect(op.delete.length).toBe(1);
       expect(containsPattern(op.delete, pattern(subject, namePredicate, oldNameVar))).toBe(true);
-      
+
       expect(op.insert).toBeDefined();
       expect(Array.isArray(op.insert)).toBe(true);
       expect(op.insert.length).toBe(1);
-      expect(containsPattern(op.insert, pattern(subject, namePredicate, DF.literal('Alice B.')))).toBe(true);
-      
+      expect(
+        containsPattern(op.insert, pattern(subject, namePredicate, DF.literal('Alice B.')))
+      ).toBe(true);
+
       expect(op.where).toBeDefined();
       // For where, check for patterns property and check patterns accordingly
       if (op.where && op.where.patterns) {
         expect(op.where.patterns.length).toBe(1);
-        expect(containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))).toBe(true);
+        expect(
+          containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))
+        ).toBe(true);
       }
     });
 
@@ -215,21 +263,38 @@ describe('MutationConverter', () => {
       expect(op.insert).toBeDefined();
       expect(Array.isArray(op.insert)).toBe(true);
       expect(op.insert.length).toBe(2);
-      expect(containsPattern(op.insert, pattern(subject, namePredicate, DF.literal('Alicia')))).toBe(true);
-      expect(containsPattern(op.insert, pattern(subject, agePredicate, DF.literal('31', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer'))))).toBe(true);
+      expect(
+        containsPattern(op.insert, pattern(subject, namePredicate, DF.literal('Alicia')))
+      ).toBe(true);
+      expect(
+        containsPattern(
+          op.insert,
+          pattern(
+            subject,
+            agePredicate,
+            DF.literal('31', DF.namedNode('http://www.w3.org/2001/XMLSchema#integer'))
+          )
+        )
+      ).toBe(true);
 
       expect(op.where).toBeDefined();
       // For where, check for patterns property and check patterns accordingly
       if (op.where && op.where.patterns) {
         expect(op.where.patterns.length).toBe(2);
-        expect(containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))).toBe(true);
-        expect(containsPattern(op.where.patterns, pattern(subject, agePredicate, oldAgeVar))).toBe(true);
+        expect(
+          containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))
+        ).toBe(true);
+        expect(containsPattern(op.where.patterns, pattern(subject, agePredicate, oldAgeVar))).toBe(
+          true
+        );
       }
     });
 
     it('should throw error for update mutation with missing id', () => {
       const mutationString = `mutation { updateUser(input: {name: "Noone"}) { id } }`;
-      expect(() => converter.convert(mutationString)).toThrowError(/update mutations require an 'id' argument/);
+      expect(() => converter.convert(mutationString)).toThrow(
+        /update mutations require an 'id' argument/
+      );
     });
   });
 
@@ -249,9 +314,9 @@ describe('MutationConverter', () => {
       expect(Array.isArray(op.delete)).toBe(true);
       expect(op.delete.length).toBe(1);
       expect(containsPattern(op.delete, expectedPattern)).toBe(true);
-      
+
       expect(op.insert).toBeUndefined(); // No insert clause for delete
-      
+
       expect(op.where).toBeDefined();
       // For where, check for patterns property and check patterns accordingly
       if (op.where && op.where.patterns) {
@@ -262,55 +327,61 @@ describe('MutationConverter', () => {
 
     it('should throw error for delete mutation with missing id', () => {
       const mutationString = `mutation { deleteUser { success } }`;
-      expect(() => converter.convert(mutationString)).toThrowError(/delete mutations require an 'id' argument/);
+      expect(() => converter.convert(mutationString)).toThrow(
+        /delete mutations require an 'id' argument/
+      );
     });
   });
 
   describe('Error Handling & Context', () => {
     it('should throw error if a field name in input is not in context', () => {
       const mutationString = `mutation { createUser(input: {nonExistentField: "data"}) { id } }`;
-        // Note: 'nonExistentField' is not in the global context mapping.
-        // The current getPredicateIri throws if not found.
-      expect(() => converter.convert(mutationString))
-          .toThrowError('No IRI mapping found for predicate: nonExistentField in the JSON-LD context.');
+      // Note: 'nonExistentField' is not in the global context mapping.
+      // The current getPredicateIri throws if not found.
+      expect(() => converter.convert(mutationString)).toThrow(
+        'No IRI mapping found for predicate: nonExistentField in the JSON-LD context.'
+      );
     });
 
     it('should throw error if an entity type from mutation name is not in context', () => {
       const mutationString = `mutation { createNonExistentType(input: {name: "test"}) { id } }`;
-        // 'NonExistentType' is not in the context.
-        // The current getTypeIri throws if not found after trying vocab.
-      expect(() => converter.convert(mutationString))
-          .toThrowError('No IRI mapping found for type: NonExistentType in the JSON-LD context.');
+      // 'NonExistentType' is not in the context.
+      // The current getTypeIri throws if not found after trying vocab.
+      expect(() => converter.convert(mutationString)).toThrow(
+        'No IRI mapping found for type: NonExistentType in the JSON-LD context.'
+      );
     });
 
     it('should throw error for unsupported mutation operation (not create/update/delete)', () => {
       const mutationString = `mutation { queryUser(id: "ex:user1") { name } }`;
-      expect(() => converter.convert(mutationString))
-          .toThrowError('Unsupported mutation operation: queryUser. Must start with create, update, or delete.');
+      expect(() => converter.convert(mutationString)).toThrow(
+        'Unsupported mutation operation: queryUser. Must start with create, update, or delete.'
+      );
     });
 
     it('should create a user with empty input (only type quad)', () => {
       const mutationString = `mutation { createUser(input: {}) { id } }`;
-        // This creates only a type quad. Should still produce a valid deleteinsert operation.
+      // This creates only a type quad. Should still produce a valid deleteinsert operation.
       const result = converter.convert(mutationString);
       const updateOp = result.updates[0] as any; // Use any or check structure
       expect(updateOp.type).toBe('deleteinsert');
       expect(updateOp.insert).toBeDefined();
       expect(Array.isArray(updateOp.insert)).toBe(true);
       expect(updateOp.insert.length).toBe(1); // Just the type quad
-      
+
       const subject = updateOp.insert[0].subject;
       expect(subject.termType).toBe('NamedNode');
-      expect(updateOp.insert[0].predicate.value).toBe('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+      expect(updateOp.insert[0].predicate.value).toBe(
+        'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+      );
       expect(updateOp.insert[0].object.value).toBe('http://example.org/User');
-
     });
 
     it('should throw error for update mutation with empty input', () => {
       const mutationString = `mutation { updateUser(id: "ex:user1", input: {}) { id } }`;
-      expect(() => converter.convert(mutationString))
-          .toThrowError("Update operation has no fields to update in 'input'.");
+      expect(() => converter.convert(mutationString)).toThrow(
+        "Update operation has no fields to update in 'input'."
+      );
     });
-
   });
 });

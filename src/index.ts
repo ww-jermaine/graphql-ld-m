@@ -12,5 +12,5 @@ export {
   QueryArgsRaw,
   QueryArgsSparql,
   GraphQlToSparqlResult,
-  ExtendedDataFactory
-} from './types/interfaces'; 
+  ExtendedDataFactory,
+} from './types/interfaces';

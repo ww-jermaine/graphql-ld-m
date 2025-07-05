@@ -67,4 +67,4 @@ export class ContextError extends GraphQLLDError {
     this.name = 'ContextError';
     Object.setPrototypeOf(this, ContextError.prototype);
   }
-} 
+}

@@ -38,19 +38,20 @@ export class MutationConverter {
   constructor(context: JsonLdContextNormalized, dataFactory?: RDF.DataFactory) {
     this.context = context;
     const baseFactory = dataFactory || new RdfDataFactoryClass(); // Use aliased constructor
-    
+
     // Extend the factory to include variable creation if it doesn't exist
     this.dataFactory = baseFactory as ExtendedDataFactory;
-    
+
     // Add variable method if it doesn't exist
     if (!this.dataFactory.variable) {
       this.dataFactory.variable = (value: string): RDF.Variable => ({
         termType: 'Variable',
         value: value,
-        equals: (other: RDF.Term): boolean => other.termType === 'Variable' && other.value === value,
+        equals: (other: RDF.Term): boolean =>
+          other.termType === 'Variable' && other.value === value,
       });
     }
-    
+
     this.sparqlAlgebraFactory = new SparqlAlgebraFactory(this.dataFactory);
   }
 
@@ -87,7 +88,6 @@ export class MutationConverter {
     const deleteQuads: RDF.Quad[] = [];
     const deleteWherePatterns: Algebra.Pattern[] = []; // WHERE clause still needs patterns for BGP
 
-
     visit(ast, {
       OperationDefinition: (node: OperationDefinitionNode) => {
         if (node.operation !== 'mutation') {
@@ -108,19 +108,30 @@ export class MutationConverter {
             operationType = 'delete';
             entityTypeName = mutationName.substring('delete'.length);
           } else {
-            throw new Error(`Unsupported mutation operation: ${mutationName}. Must start with create, update, or delete.`);
+            throw new Error(
+              `Unsupported mutation operation: ${mutationName}. Must start with create, update, or delete.`
+            );
           }
 
           // For update/delete, expect an 'id' argument for the subject.
           if (operationType === 'update' || operationType === 'delete') {
             const idArg = node.arguments?.find(arg => arg.name.value === 'id');
             if (!idArg || idArg.value.kind !== Kind.STRING) {
-              throw new Error(`${operationType} mutations require an 'id' argument of type String.`);
+              throw new Error(
+                `${operationType} mutations require an 'id' argument of type String.`
+              );
             }
             const iriValue = (idArg.value as StringValueNode).value;
             // Basic IRI validation to prevent injection
-            if (iriValue.includes('\n') || iriValue.includes('\r') || iriValue.includes('>') || iriValue.includes('<')) {
-              throw new Error("Invalid IRI: contains illegal characters that could cause injection");
+            if (
+              iriValue.includes('\n') ||
+              iriValue.includes('\r') ||
+              iriValue.includes('>') ||
+              iriValue.includes('<')
+            ) {
+              throw new Error(
+                'Invalid IRI: contains illegal characters that could cause injection'
+              );
             }
             // Expand the IRI using the context
             const expandedIri = this.expandIri(iriValue);
@@ -134,7 +145,14 @@ export class MutationConverter {
           // In 'create', subjectHint might be set if 'id' was in input, otherwise it's generated in handleCreate
           // For simplicity, this example assumes handleCreate populates subjectHint if an ID is found in input.
         } else if (operationType === 'update' && subjectHint) {
-          this.handleUpdate(node, subjectHint as RDF.NamedNode, entityTypeName!, updateInsertQuads, updateDeleteQuads, updateWherePatterns);
+          this.handleUpdate(
+            node,
+            subjectHint as RDF.NamedNode,
+            entityTypeName!,
+            updateInsertQuads,
+            updateDeleteQuads,
+            updateWherePatterns
+          );
         } else if (operationType === 'delete' && subjectHint) {
           this.handleDelete(node, subjectHint as RDF.NamedNode, deleteQuads, deleteWherePatterns);
         }
@@ -149,29 +167,38 @@ export class MutationConverter {
       // For INSERT DATA equivalent, we use createDeleteInsert with only insert part
       const insertOperation = this.sparqlAlgebraFactory.createDeleteInsert(
         undefined, // delete (empty for INSERT DATA)
-        createQuads as any, // insert quads directly - cast to bypass typing
+        createQuads.map(quad => this.quadToAlgebraPattern(quad)), // convert quads to patterns
         undefined // where (empty for INSERT DATA)
       );
       operation = this.sparqlAlgebraFactory.createCompositeUpdate([insertOperation]);
-    } else if (operationType === 'update' && (updateInsertQuads.length > 0 || updateDeleteQuads.length > 0)) {
+    } else if (
+      operationType === 'update' &&
+      (updateInsertQuads.length > 0 || updateDeleteQuads.length > 0)
+    ) {
       // Ensure there's something to do for an update
       if (updateInsertQuads.length === 0 && updateDeleteQuads.length === 0) {
-        throw new Error("Update operation resulted in no changes. Input might be empty or invalid.");
+        throw new Error(
+          'Update operation resulted in no changes. Input might be empty or invalid.'
+        );
       }
-      
+
       const whereBgp = this.sparqlAlgebraFactory.createBgp(updateWherePatterns);
-      
+
       const updateOperation = this.sparqlAlgebraFactory.createDeleteInsert(
-        updateDeleteQuads.length > 0 ? updateDeleteQuads as any : undefined, // delete quads directly - cast to bypass typing
-        updateInsertQuads.length > 0 ? updateInsertQuads as any : undefined, // insert quads directly - cast to bypass typing
+        updateDeleteQuads.length > 0
+          ? updateDeleteQuads.map(quad => this.quadToAlgebraPattern(quad))
+          : undefined, // delete quads converted to patterns
+        updateInsertQuads.length > 0
+          ? updateInsertQuads.map(quad => this.quadToAlgebraPattern(quad))
+          : undefined, // insert quads converted to patterns
         whereBgp
       );
       operation = this.sparqlAlgebraFactory.createCompositeUpdate([updateOperation]);
     } else if (operationType === 'delete' && deleteQuads.length > 0) {
       const whereBgp = this.sparqlAlgebraFactory.createBgp(deleteWherePatterns);
-      
+
       const deleteOperation = this.sparqlAlgebraFactory.createDeleteInsert(
-        deleteQuads as any, // delete quads directly - cast to bypass typing
+        deleteQuads.map(quad => this.quadToAlgebraPattern(quad)), // delete quads converted to patterns
         undefined, // insert (empty for DELETE)
         whereBgp // where
       );
@@ -179,7 +206,9 @@ export class MutationConverter {
     }
 
     if (!operation) {
-      throw new Error('Failed to convert mutation to SPARQL algebra. Operation type might be unhandled or input was empty.');
+      throw new Error(
+        'Failed to convert mutation to SPARQL algebra. Operation type might be unhandled or input was empty.'
+      );
     }
     return operation;
   }
@@ -187,12 +216,12 @@ export class MutationConverter {
   /**
    * Converts a GraphQL mutation string into a SPARQL UPDATE string.
    * This method uses the same proven security approach as query conversion.
-   * 
+   *
    * @param mutationString The GraphQL mutation string to convert.
    * @param variables Optional GraphQL variables to substitute in the mutation.
    * @returns A SPARQL UPDATE string.
    */
-  public convertToSparql(mutationString: string, variables?: { [key: string]: any }): string {
+  public convertToSparql(mutationString: string, variables?: { [key: string]: unknown }): string {
     // TODO: Implement variable substitution in future versions
     if (variables && Object.keys(variables).length > 0) {
       // Variables parameter is acknowledged but not yet implemented
@@ -222,13 +251,19 @@ export class MutationConverter {
     let localSubject: RDF.NamedNode | RDF.BlankNode;
     const idField = inputObject.fields.find(field => field.name.value === 'id');
     if (idField) {
-      if (idField.value.kind !== Kind.STRING) throw new Error("Input 'id' field must be a String for create.");
+      if (idField.value.kind !== Kind.STRING)
+        throw new Error("Input 'id' field must be a String for create.");
       const iriValue = (idField.value as StringValueNode).value;
       // Basic IRI validation to prevent injection
-      if (iriValue.includes('\n') || iriValue.includes('\r') || iriValue.includes('>') || iriValue.includes('<')) {
-        throw new Error("Invalid IRI: contains illegal characters that could cause injection");
+      if (
+        iriValue.includes('\n') ||
+        iriValue.includes('\r') ||
+        iriValue.includes('>') ||
+        iriValue.includes('<')
+      ) {
+        throw new Error('Invalid IRI: contains illegal characters that could cause injection');
       }
-      
+
       // Expand the IRI using the context
       const expandedIri = this.expandIri(iriValue);
       localSubject = this.dataFactory.namedNode(expandedIri);
@@ -238,26 +273,33 @@ export class MutationConverter {
       localSubject = this.dataFactory.namedNode(`urn:uuid:${uuid}`);
     }
 
-    quads.push(this.dataFactory.quad(
-      localSubject,
-      this.dataFactory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-      entityTypeIri,
-    ));
+    quads.push(
+      this.dataFactory.quad(
+        localSubject,
+        this.dataFactory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+        entityTypeIri
+      )
+    );
 
     inputObject.fields.forEach(field => {
       const fieldName = field.name.value;
       if (fieldName === 'id') return;
 
       const predicateIri = this.getPredicateIri(fieldName);
-      
+
       // Handle relationship fields (like productId -> product or direct relationship fields)
-      if ((fieldName.endsWith('Id') || this.isRelationshipField(fieldName)) && field.value.kind === Kind.STRING) {
+      if (
+        (fieldName.endsWith('Id') || this.isRelationshipField(fieldName)) &&
+        field.value.kind === Kind.STRING
+      ) {
         const relationshipName = fieldName.endsWith('Id') ? fieldName.slice(0, -2) : fieldName;
         const relationshipPredicateIri = this.getPredicateIri(relationshipName);
         const relatedEntityIri = this.expandIri((field.value as StringValueNode).value);
         const relatedEntityNode = this.dataFactory.namedNode(relatedEntityIri);
-        quads.push(this.dataFactory.quad(localSubject, relationshipPredicateIri, relatedEntityNode));
-        
+        quads.push(
+          this.dataFactory.quad(localSubject, relationshipPredicateIri, relatedEntityNode)
+        );
+
         // Also create the inverse relationship if it exists in the context
         try {
           const inversePredicateIri = this.getInversePredicateIri(relationshipName);
@@ -289,7 +331,7 @@ export class MutationConverter {
     // Get base from context
     const contextRaw = this.context.getContextRaw();
     const base = contextRaw['@base'] as string;
-    
+
     // If no base is defined, use the IRI as is
     if (!base) {
       return iri;
@@ -297,7 +339,7 @@ export class MutationConverter {
 
     // Remove trailing slash from base if present
     const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
-    
+
     // Use the IRI as-is since colons are valid in URL paths
     return `${cleanBase}/${iri}`;
   }
@@ -307,9 +349,9 @@ export class MutationConverter {
    * This is a simple implementation - in production, consider using a proper UUID library.
    */
   private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);
     });
   }
@@ -331,7 +373,7 @@ export class MutationConverter {
     entityName: string,
     insertQuads: RDF.Quad[],
     deleteQuads: RDF.Quad[],
-    wherePatterns: Algebra.Pattern[],
+    wherePatterns: Algebra.Pattern[]
   ): void {
     const inputArg = node.arguments?.find(arg => arg.name.value === 'input');
     if (!inputArg || inputArg.value.kind !== Kind.OBJECT) {
@@ -349,7 +391,8 @@ export class MutationConverter {
 
     inputObject.fields.forEach(field => {
       const fieldName = field.name.value;
-      if (fieldName === 'id') throw new Error("'id' field cannot be updated via input object in update mutation.");
+      if (fieldName === 'id')
+        throw new Error("'id' field cannot be updated via input object in update mutation.");
 
       const predicateIri = this.getPredicateIri(fieldName);
       const newObjectValue = this.parseValueNode(field.value);
@@ -357,17 +400,16 @@ export class MutationConverter {
       const oldObjectVar = this.dataFactory.variable(`old_${fieldName}`);
 
       // Delete existing value(s) for the predicate
-      deleteQuads.push(
-        this.dataFactory.quad(subject, predicateIri, oldObjectVar)
-      );
+      deleteQuads.push(this.dataFactory.quad(subject, predicateIri, oldObjectVar));
       // Insert new value
-      insertQuads.push(
-        this.dataFactory.quad(subject, predicateIri, newObjectValue)
-      );
+      insertQuads.push(this.dataFactory.quad(subject, predicateIri, newObjectValue));
       // Add to WHERE clause to bind the old value
-      wherePatterns.push(this.quadToAlgebraPattern( // Use new helper
-        this.dataFactory.quad(subject, predicateIri, oldObjectVar)
-      ));
+      wherePatterns.push(
+        this.quadToAlgebraPattern(
+          // Use new helper
+          this.dataFactory.quad(subject, predicateIri, oldObjectVar)
+        )
+      );
     });
     if (insertQuads.length === 0) {
       throw new Error("Update operation has no fields to update in 'input'.");
@@ -387,7 +429,7 @@ export class MutationConverter {
     _node: FieldNode,
     subject: RDF.NamedNode,
     deleteQuads: RDF.Quad[],
-    wherePatterns: Algebra.Pattern[],
+    wherePatterns: Algebra.Pattern[]
   ): void {
     // For DELETE WHERE { <subj> ?p ?o . }, delete all triples with this subject.
     const pVar = this.dataFactory.variable('p_del');
@@ -409,19 +451,28 @@ export class MutationConverter {
    */
   private parseValueNode(valueNode: ValueNode): RDF.Literal {
     switch (valueNode.kind) {
-    case Kind.STRING:
-      // No manual escaping needed - sparqlalgebrajs toSparql() handles it during serialization
-      return this.dataFactory.literal(valueNode.value);
-    case Kind.INT:
-      return this.dataFactory.literal(valueNode.value, this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer'));
-    case Kind.FLOAT:
+      case Kind.STRING:
+        // No manual escaping needed - sparqlalgebrajs toSparql() handles it during serialization
+        return this.dataFactory.literal(valueNode.value);
+      case Kind.INT:
+        return this.dataFactory.literal(
+          valueNode.value,
+          this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#integer')
+        );
+      case Kind.FLOAT:
         // rdf-data-factory literal expects a string for the lexical value.
-      return this.dataFactory.literal(String(valueNode.value), this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#double'));
-    case Kind.BOOLEAN:
-      return this.dataFactory.literal(String(valueNode.value), this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#boolean'));
+        return this.dataFactory.literal(
+          String(valueNode.value),
+          this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#double')
+        );
+      case Kind.BOOLEAN:
+        return this.dataFactory.literal(
+          String(valueNode.value),
+          this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#boolean')
+        );
       // TODO: Handle LIST, OBJECT (for nested structures or specific literal types via objects)
-    default:
-      throw new Error(`Unsupported GraphQL value kind: ${valueNode.kind}`);
+      default:
+        throw new Error(`Unsupported GraphQL value kind: ${valueNode.kind}`);
     }
   }
 
@@ -436,7 +487,12 @@ export class MutationConverter {
     const term = this.context.getContextRaw()[fieldName];
     if (typeof term === 'string') {
       return this.dataFactory.namedNode(term);
-    } else if (typeof term === 'object' && term !== null && '@id' in term && typeof term['@id'] === 'string') {
+    } else if (
+      typeof term === 'object' &&
+      term !== null &&
+      '@id' in term &&
+      typeof term['@id'] === 'string'
+    ) {
       return this.dataFactory.namedNode(term['@id']);
     }
     throw new Error(`No IRI mapping found for predicate: ${fieldName} in the JSON-LD context.`);
@@ -460,7 +516,12 @@ export class MutationConverter {
 
     if (typeof term === 'string') {
       return this.dataFactory.namedNode(term);
-    } else if (typeof term === 'object' && term !== null && '@id' in term && typeof term['@id'] === 'string') {
+    } else if (
+      typeof term === 'object' &&
+      term !== null &&
+      '@id' in term &&
+      typeof term['@id'] === 'string'
+    ) {
       return this.dataFactory.namedNode(term['@id']);
     }
     // If not found, try @vocab
@@ -489,7 +550,7 @@ export class MutationConverter {
 
   /**
    * Attempts to find the inverse predicate IRI for a relationship.
-   * For example, if we have 'product' -> 'schema:itemReviewed', 
+   * For example, if we have 'product' -> 'schema:itemReviewed',
    * we look for 'reviews' -> 'schema:review' as the inverse.
    * @param relationshipName The name of the relationship.
    * @returns The inverse predicate IRI or null if not found.
@@ -498,12 +559,12 @@ export class MutationConverter {
   private getInversePredicateIri(relationshipName: string): RDF.NamedNode | null {
     // Common inverse relationship patterns
     const inversePatterns: Record<string, string> = {
-      'product': 'reviews',
-      'review': 'product',
-      'user': 'posts',
-      'post': 'user',
-      'author': 'works',
-      'work': 'author'
+      product: 'reviews',
+      review: 'product',
+      user: 'posts',
+      post: 'user',
+      author: 'works',
+      work: 'author',
     };
 
     const inverseName = inversePatterns[relationshipName];
@@ -527,22 +588,35 @@ export class MutationConverter {
    * @returns True if the field represents a relationship.
    * @private
    */
-     private isRelationshipField(fieldName: string): boolean {
-     // Check if the field name maps to a relationship predicate in the context
-     try {
-       const contextTerm = this.context.getContextRaw()[fieldName];
-       
-       // If the context term has @type: @id, it's a relationship
-       if (typeof contextTerm === 'object' && contextTerm !== null && contextTerm['@type'] === '@id') {
-         return true;
-       }
-       
-       // Check common relationship field names
-       const relationshipFields = ['product', 'review', 'user', 'author', 'owner', 'creator', 'parent', 'child'];
-       return relationshipFields.includes(fieldName.toLowerCase());
-     } catch (error) {
-       // If we can't resolve the predicate, assume it's not a relationship
-       return false;
-     }
-   }
+  private isRelationshipField(fieldName: string): boolean {
+    // Check if the field name maps to a relationship predicate in the context
+    try {
+      const contextTerm = this.context.getContextRaw()[fieldName];
+
+      // If the context term has @type: @id, it's a relationship
+      if (
+        typeof contextTerm === 'object' &&
+        contextTerm !== null &&
+        contextTerm['@type'] === '@id'
+      ) {
+        return true;
+      }
+
+      // Check common relationship field names
+      const relationshipFields = [
+        'product',
+        'review',
+        'user',
+        'author',
+        'owner',
+        'creator',
+        'parent',
+        'child',
+      ];
+      return relationshipFields.includes(fieldName.toLowerCase());
+    } catch (error) {
+      // If we can't resolve the predicate, assume it's not a relationship
+      return false;
+    }
+  }
 }

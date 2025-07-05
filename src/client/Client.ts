@@ -1,20 +1,20 @@
-import { Converter as GraphQlToSparqlConverter } from "graphql-to-sparql";
-import { ExecutionResult } from "graphql/execution/execute";
-import { print, ValueNode, Kind, ObjectFieldNode, NameNode } from "graphql/language";
-import { GraphQLError } from "graphql/error";
-import { ContextParser, JsonLdContextNormalized } from "jsonld-context-parser";
-import { DataFactory } from "rdf-data-factory";
-import { Converter as SparqlJsonToTreeConverter } from "sparqljson-to-tree";
-import { 
-  QueryEngine, 
-  ClientArgs, 
-  QueryArgs, 
+import { Converter as GraphQlToSparqlConverter } from 'graphql-to-sparql';
+import { ExecutionResult } from 'graphql/execution/execute';
+import { print, ValueNode, Kind, ObjectFieldNode, NameNode } from 'graphql/language';
+
+import { ContextParser, JsonLdContextNormalized } from 'jsonld-context-parser';
+import { DataFactory } from 'rdf-data-factory';
+import { Converter as SparqlJsonToTreeConverter } from 'sparqljson-to-tree';
+import {
+  QueryEngine,
+  ClientArgs,
+  QueryArgs,
   QueryArgsRaw,
   GraphQlToSparqlResult,
   QueryEngineError,
-  ExtendedDataFactory
+  ExtendedDataFactory,
 } from '../types/interfaces';
-import { MutationConverter } from "../mutation/MutationConverter";
+import { MutationConverter } from '../mutation/MutationConverter';
 
 /**
  * A GraphQL-LD client.
@@ -33,9 +33,11 @@ export class Client {
     this.queryEngine = args.queryEngine;
     this.dataFactory = (args.dataFactory || new DataFactory()) as ExtendedDataFactory;
 
-    this.graphqlToSparqlConverter = args.graphqlToSparqlConverter ||
+    this.graphqlToSparqlConverter =
+      args.graphqlToSparqlConverter ||
       new GraphQlToSparqlConverter({ dataFactory: this.dataFactory, requireContext: true });
-    this.sparqlJsonToTreeConverter = args.sparqlJsonToTreeConverter ||
+    this.sparqlJsonToTreeConverter =
+      args.sparqlJsonToTreeConverter ||
       new SparqlJsonToTreeConverter({ dataFactory: this.dataFactory, materializeRdfJsTerms: true });
   }
 
@@ -65,14 +67,14 @@ export class Client {
       const context = await this.context;
       const mutationConverter = new MutationConverter(context, this.dataFactory);
       const queryString = typeof args.query === 'string' ? args.query : print(args.query);
-      
+
       if (args.variables && Object.keys(args.variables).length > 0) {
         throw new QueryEngineError(
           'GraphQL variables in mutations are not yet fully supported.',
           'UNSUPPORTED_FEATURE'
         );
       }
-      
+
       sparqlUpdate = mutationConverter.convertToSparql(queryString, args.variables);
     } else {
       throw new QueryEngineError(
@@ -91,22 +93,9 @@ export class Client {
     try {
       const sparqlJsonResult = await this.queryEngine.update(sparqlUpdate, args.queryEngineOptions);
       return { data: { mutate: { success: true, details: sparqlJsonResult } } };
-    } catch (error) {
-      if (error instanceof QueryEngineError) {
-        throw error;
-      }
-      return { 
-        data: null, 
-        errors: [new GraphQLError(
-          `Mutation failed: ${error instanceof Error ? error.message : String(error)}`,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          error instanceof Error ? error : undefined,
-          { code: 'MUTATION_ERROR' }
-        )] 
-      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new QueryEngineError(`Mutation execution failed: ${errorMessage}`, 'MUTATION_ERROR');
     }
   }
 
@@ -129,15 +118,18 @@ export class Client {
   public async query(args: QueryArgs): Promise<ExecutionResult> {
     try {
       // Convert GraphQL to SPARQL
-      const { sparqlAlgebra, singularizeVariables } = 'query' in args
-        ? await this.graphQlToSparql({ query: args.query, variables: args.variables || {} })
-        : args;
+      const { sparqlAlgebra, singularizeVariables } =
+        'query' in args
+          ? await this.graphQlToSparql({ query: args.query, variables: args.variables || {} })
+          : args;
 
       // Execute SPARQL query
       const sparqlJsonResult = await this.queryEngine.query(sparqlAlgebra, args.queryEngineOptions);
 
       // Convert SPARQL response to GraphQL response
-      const data = this.sparqlJsonToTreeConverter.sparqlJsonResultsToTree(sparqlJsonResult, { singularizeVariables });
+      const data = this.sparqlJsonToTreeConverter.sparqlJsonResultsToTree(sparqlJsonResult, {
+        singularizeVariables,
+      });
       return { data };
     } catch (error) {
       if (error instanceof QueryEngineError) {
@@ -168,10 +160,16 @@ export class Client {
       // Convert query to string if it's a DocumentNode
       const queryString = typeof query === 'string' ? query : print(query);
 
-      const sparqlAlgebra = await this.graphqlToSparqlConverter
-        .graphqlToSparqlAlgebra(queryString, (await this.context).getContextRaw(), options);
+      const sparqlAlgebra = await this.graphqlToSparqlConverter.graphqlToSparqlAlgebra(
+        queryString,
+        (await this.context).getContextRaw(),
+        options
+      );
 
-      return { sparqlAlgebra: sparqlAlgebra as any, singularizeVariables };
+      return {
+        sparqlAlgebra: sparqlAlgebra as unknown as import('sparqlalgebrajs').Algebra.Operation,
+        singularizeVariables,
+      };
     } catch (error) {
       throw new QueryEngineError(
         `GraphQL to SPARQL conversion failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -186,13 +184,15 @@ export class Client {
    * @param variables Object containing variable name-value pairs
    * @returns Object with variable names mapped to ValueNode objects
    */
-  private convertVariablesToValueNodes(variables: { [key: string]: unknown }): { [key: string]: ValueNode } {
+  private convertVariablesToValueNodes(variables: { [key: string]: unknown }): {
+    [key: string]: ValueNode;
+  } {
     const result: { [key: string]: ValueNode } = {};
-    
+
     for (const [name, value] of Object.entries(variables)) {
       result[name] = this.valueToValueNode(value);
     }
-    
+
     return result;
   }
 
@@ -205,11 +205,11 @@ export class Client {
     if (value === null) {
       return { kind: Kind.NULL };
     }
-    
+
     if (typeof value === 'string') {
       return { kind: Kind.STRING, value };
     }
-    
+
     if (typeof value === 'number') {
       if (Number.isInteger(value)) {
         return { kind: Kind.INT, value: value.toString() };
@@ -217,29 +217,31 @@ export class Client {
         return { kind: Kind.FLOAT, value: value.toString() };
       }
     }
-    
+
     if (typeof value === 'boolean') {
       return { kind: Kind.BOOLEAN, value };
     }
-    
+
     if (Array.isArray(value)) {
       return {
         kind: Kind.LIST,
-        values: value.map(item => this.valueToValueNode(item))
+        values: value.map(item => this.valueToValueNode(item)),
       };
     }
-    
+
     if (typeof value === 'object' && value !== null) {
       return {
         kind: Kind.OBJECT,
-        fields: Object.entries(value).map(([key, val]): ObjectFieldNode => ({
-          kind: Kind.OBJECT_FIELD,
-          name: { kind: Kind.NAME, value: key } as NameNode,
-          value: this.valueToValueNode(val)
-        }))
+        fields: Object.entries(value).map(
+          ([key, val]): ObjectFieldNode => ({
+            kind: Kind.OBJECT_FIELD,
+            name: { kind: Kind.NAME, value: key } as NameNode,
+            value: this.valueToValueNode(val),
+          })
+        ),
       };
     }
-    
+
     // Fallback for unknown types - convert to string
     return { kind: Kind.STRING, value: String(value) };
   }

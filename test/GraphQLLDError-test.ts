@@ -3,7 +3,7 @@ import {
   ConversionError,
   ValidationError,
   EndpointError,
-  ContextError
+  ContextError,
 } from '../src/shared/errors/GraphQLLDError';
 
 describe('GraphQLLDError', () => {
@@ -29,7 +29,7 @@ describe('GraphQLLDError', () => {
       name: 'GraphQLLDError',
       message: 'Test error',
       code: 'TEST_ERROR',
-      details: details
+      details: details,
     });
   });
 
@@ -107,4 +107,4 @@ describe('GraphQLLDError', () => {
       expect(conversionError instanceof Error).toBe(true);
     });
   });
-}); 
+});

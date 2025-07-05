@@ -29,23 +29,19 @@ describe('QueryEngineSparqlEndpoint', () => {
             {
               s: { type: 'uri', value: 'http://example.org/subject' },
               p: { type: 'uri', value: 'http://example.org/predicate' },
-              o: { type: 'literal', value: 'object' }
-            }
-          ]
-        }
+              o: { type: 'literal', value: 'object' },
+            },
+          ],
+        },
       };
 
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve(mockResponse)
+        json: () => Promise.resolve(mockResponse),
       });
 
       const query = sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(
-          DF.variable('s'),
-          DF.variable('p'),
-          DF.variable('o')
-        )
+        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
       ]);
 
       const result = await queryEngine.query(query);
@@ -57,28 +53,25 @@ describe('QueryEngineSparqlEndpoint', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/sparql-query',
-            'Accept': 'application/sparql-results+json'
-          }
+            Accept: 'application/sparql-results+json',
+          },
         })
       );
     });
 
     it('should handle query timeout', async () => {
-      (global.fetch as jest.Mock).mockImplementationOnce(() => new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('AbortError')), 50);
-      }));
+      (global.fetch as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('AbortError')), 50);
+          })
+      );
 
       const query = sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(
-          DF.variable('s'),
-          DF.variable('p'),
-          DF.variable('o')
-        )
+        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
       ]);
 
-      await expect(queryEngine.query(query, { timeout: 10 }))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(queryEngine.query(query, { timeout: 10 })).rejects.toThrow(QueryEngineError);
     });
 
     it('should handle HTTP error responses', async () => {
@@ -86,46 +79,34 @@ describe('QueryEngineSparqlEndpoint', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
-        text: () => Promise.resolve('Invalid SPARQL query syntax')
+        text: () => Promise.resolve('Invalid SPARQL query syntax'),
       });
 
       const query = sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(
-          DF.variable('s'),
-          DF.variable('p'),
-          DF.variable('o')
-        )
+        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
       ]);
 
-      await expect(queryEngine.query(query))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
 
     it('should handle invalid response format', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ invalid: 'format' })
+        json: () => Promise.resolve({ invalid: 'format' }),
       });
 
       const query = sparqlAlgebraFactory.createBgp([
-        sparqlAlgebraFactory.createPattern(
-          DF.variable('s'),
-          DF.variable('p'),
-          DF.variable('o')
-        )
+        sparqlAlgebraFactory.createPattern(DF.variable('s'), DF.variable('p'), DF.variable('o')),
       ]);
 
-      await expect(queryEngine.query(query))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
   });
 
   describe('update', () => {
     it('should execute a SPARQL update successfully', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true
+        ok: true,
       });
 
       const updateQuery = 'INSERT DATA { <http://example.org/s> <http://example.org/p> "o" }';
@@ -133,7 +114,7 @@ describe('QueryEngineSparqlEndpoint', () => {
 
       expect(result).toEqual({
         success: true,
-        message: 'Update operation completed successfully.'
+        message: 'Update operation completed successfully.',
       });
 
       expect(global.fetch).toHaveBeenCalledWith(
@@ -141,22 +122,25 @@ describe('QueryEngineSparqlEndpoint', () => {
         expect.objectContaining({
           method: 'POST',
           headers: {
-            'Content-Type': 'application/sparql-update'
+            'Content-Type': 'application/sparql-update',
           },
-          body: updateQuery
+          body: updateQuery,
         })
       );
     });
 
     it('should handle update timeout', async () => {
-      (global.fetch as jest.Mock).mockImplementationOnce(() => new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('AbortError')), 50);
-      }));
+      (global.fetch as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('AbortError')), 50);
+          })
+      );
 
       const updateQuery = 'INSERT DATA { <http://example.org/s> <http://example.org/p> "o" }';
-      await expect(queryEngine.update(updateQuery, { timeout: 10 }))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(queryEngine.update(updateQuery, { timeout: 10 })).rejects.toThrow(
+        QueryEngineError
+      );
     });
 
     it('should handle HTTP error responses in update', async () => {
@@ -164,13 +148,11 @@ describe('QueryEngineSparqlEndpoint', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
-        text: () => Promise.resolve('Invalid SPARQL update syntax')
+        text: () => Promise.resolve('Invalid SPARQL update syntax'),
       });
 
       const updateQuery = 'INSERT DATA { <http://example.org/s> <http://example.org/p> "o" }';
-      await expect(queryEngine.update(updateQuery))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(queryEngine.update(updateQuery)).rejects.toThrow(QueryEngineError);
     });
   });
-}); 
+});

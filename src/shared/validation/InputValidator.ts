@@ -62,7 +62,10 @@ export class IriValidator {
 
     // Additional validation for non-HTTP schemes
     if (iri.includes('//') && !iri.startsWith('file:')) {
-      throw new ValidationError('Invalid IRI: double slashes only allowed in HTTP(S) and file URIs', { iri });
+      throw new ValidationError(
+        'Invalid IRI: double slashes only allowed in HTTP(S) and file URIs',
+        { iri }
+      );
     }
   }
 }
@@ -90,7 +93,7 @@ export class GraphQLInputValidator {
             throw new ValidationError(`Invalid IRI in field "${key}": ${error.message}`, {
               key,
               value,
-              details: error.details
+              details: error.details,
             });
           }
           throw error;
@@ -105,11 +108,14 @@ export class GraphQLInputValidator {
               GraphQLInputValidator.validateMutationInput(item);
             } catch (error) {
               if (error instanceof ValidationError) {
-                throw new ValidationError(`Invalid array item at index ${index} in field "${key}": ${error.message}`, {
-                  key,
-                  index,
-                  details: error.details
-                });
+                throw new ValidationError(
+                  `Invalid array item at index ${index} in field "${key}": ${error.message}`,
+                  {
+                    key,
+                    index,
+                    details: error.details,
+                  }
+                );
               }
               throw error;
             }
@@ -124,7 +130,7 @@ export class GraphQLInputValidator {
           if (error instanceof ValidationError) {
             throw new ValidationError(`Invalid nested object in field "${key}": ${error.message}`, {
               key,
-              details: error.details
+              details: error.details,
             });
           }
           throw error;
@@ -135,7 +141,7 @@ export class GraphQLInputValidator {
       if (value instanceof Date || value instanceof Function) {
         throw new ValidationError(`Invalid value type at key "${key}"`, {
           key,
-          type: value.constructor.name
+          type: value.constructor.name,
         });
       }
     }
@@ -154,7 +160,7 @@ export class SparqlValidator {
     'CLEAR',
     'DELETE',
     'INSERT',
-    'UPDATE'
+    'UPDATE',
   ];
 
   /**
@@ -170,7 +176,7 @@ export class SparqlValidator {
       throw new ValidationError('Query exceeds maximum length', {
         query,
         maxLength: SparqlValidator.MAX_QUERY_LENGTH,
-        actualLength: query.length
+        actualLength: query.length,
       });
     }
 
@@ -205,4 +211,4 @@ export class SparqlValidator {
       throw new ValidationError('Query has unbalanced braces', { query });
     }
   }
-} 
+}

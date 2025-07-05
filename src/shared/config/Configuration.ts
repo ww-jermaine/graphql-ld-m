@@ -43,7 +43,9 @@ const DEFAULT_CONFIG: Partial<GraphQLLDConfig> = {
 export class Configuration {
   private config: GraphQLLDConfig;
 
-  constructor(userConfig: Pick<GraphQLLDConfig, 'context'> & Partial<Omit<GraphQLLDConfig, 'context'>>) {
+  constructor(
+    userConfig: Pick<GraphQLLDConfig, 'context'> & Partial<Omit<GraphQLLDConfig, 'context'>>
+  ) {
     // Validate required fields
     if (!userConfig.context) {
       throw new Error('JSON-LD context is required in configuration');
@@ -79,4 +81,4 @@ export class Configuration {
       ...updates,
     };
   }
-} 
+}

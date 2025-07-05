@@ -162,4 +162,4 @@ export class QueryCache<T> {
       this.logger.debug('Cache entry evicted', { key: oldestKey });
     }
   }
-} 
+}

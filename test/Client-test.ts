@@ -1,5 +1,10 @@
 import { Client } from '../src/client/Client';
-import { QueryEngine, QueryEngineError, SparqlQueryResult, SparqlUpdateResult } from '../src/types/interfaces';
+import {
+  QueryEngine,
+  QueryEngineError,
+  SparqlQueryResult,
+  SparqlUpdateResult,
+} from '../src/types/interfaces';
 import { DataFactory } from 'rdf-data-factory';
 import { Algebra } from 'sparqlalgebrajs';
 
@@ -16,20 +21,24 @@ class MockQueryEngine implements QueryEngine {
     if (this.shouldThrowError) {
       throw new QueryEngineError('Mock query error', 'MOCK_ERROR');
     }
-    return this.mockQueryResult || {
-      head: { vars: ['s'] },
-      results: { bindings: [] }
-    };
+    return (
+      this.mockQueryResult || {
+        head: { vars: ['s'] },
+        results: { bindings: [] },
+      }
+    );
   }
 
   async update(_query: string): Promise<SparqlUpdateResult> {
     if (this.shouldThrowError) {
       throw new QueryEngineError('Mock update error', 'MOCK_ERROR');
     }
-    return this.mockUpdateResult || {
-      success: true,
-      message: 'Mock update successful'
-    };
+    return (
+      this.mockUpdateResult || {
+        success: true,
+        message: 'Mock update successful',
+      }
+    );
   }
 }
 
@@ -39,8 +48,8 @@ describe('Client', () => {
       ex: 'http://example.org/',
       name: 'ex:name',
       age: 'ex:age',
-      User: 'ex:User'
-    }
+      User: 'ex:User',
+    },
   };
 
   describe('query', () => {
@@ -48,17 +57,19 @@ describe('Client', () => {
       const mockResult: SparqlQueryResult = {
         head: { vars: ['name'] },
         results: {
-          bindings: [{
-            name: { type: 'literal', value: 'Test User' }
-          }]
-        }
+          bindings: [
+            {
+              name: { type: 'literal', value: 'Test User' },
+            },
+          ],
+        },
       };
 
       const queryEngine = new MockQueryEngine(mockResult);
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const query = `
@@ -79,7 +90,7 @@ describe('Client', () => {
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const query = `
@@ -90,9 +101,7 @@ describe('Client', () => {
         }
       `;
 
-      await expect(client.query({ query }))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(client.query({ query })).rejects.toThrow(QueryEngineError);
     });
 
     it('should handle variable conversion', async () => {
@@ -100,7 +109,7 @@ describe('Client', () => {
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const query = `
@@ -116,7 +125,7 @@ describe('Client', () => {
         age: 25,
         active: true,
         tags: ['tag1', 'tag2'],
-        details: { key: 'value' }
+        details: { key: 'value' },
       };
 
       const result = await client.query({ query, variables });
@@ -129,14 +138,14 @@ describe('Client', () => {
     it('should execute a GraphQL mutation successfully', async () => {
       const mockResult: SparqlUpdateResult = {
         success: true,
-        message: 'Update successful'
+        message: 'Update successful',
       };
 
       const queryEngine = new MockQueryEngine(undefined, mockResult);
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const mutation = `
@@ -160,7 +169,7 @@ describe('Client', () => {
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const mutation = `
@@ -171,9 +180,7 @@ describe('Client', () => {
         }
       `;
 
-      await expect(client.mutate({ query: mutation }))
-        .rejects
-        .toThrow(QueryEngineError);
+      await expect(client.mutate({ query: mutation })).rejects.toThrow(QueryEngineError);
     });
 
     it('should reject mutations with variables', async () => {
@@ -181,7 +188,7 @@ describe('Client', () => {
       const client = new Client({
         context: mockContext,
         queryEngine,
-        dataFactory: DF
+        dataFactory: DF,
       });
 
       const mutation = `
@@ -192,10 +199,12 @@ describe('Client', () => {
         }
       `;
 
-      await expect(client.mutate({ 
-        query: mutation,
-        variables: { name: 'Test User' }
-      })).rejects.toThrow(QueryEngineError);
+      await expect(
+        client.mutate({
+          query: mutation,
+          variables: { name: 'Test User' },
+        })
+      ).rejects.toThrow(QueryEngineError);
     });
   });
-}); 
+});

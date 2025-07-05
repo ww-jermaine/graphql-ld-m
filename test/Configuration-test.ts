@@ -4,10 +4,10 @@ import { ContextParser } from 'jsonld-context-parser';
 
 describe('Configuration', () => {
   const mockContext = {
-    "@context": {
-      "name": "http://schema.org/name",
-      "description": "http://schema.org/description"
-    }
+    '@context': {
+      name: 'http://schema.org/name',
+      description: 'http://schema.org/description',
+    },
   };
 
   it('should create configuration with required fields', () => {
@@ -18,7 +18,7 @@ describe('Configuration', () => {
   it('should merge with default values', () => {
     const config = new Configuration({ context: mockContext });
     const fullConfig = config.getConfig();
-    
+
     expect(fullConfig).toHaveProperty('dataFactory');
     expect(fullConfig.dataFactory).toBeInstanceOf(DataFactory);
     expect(fullConfig.contextParser).toBeInstanceOf(ContextParser);
@@ -36,7 +36,7 @@ describe('Configuration', () => {
       context: mockContext,
       timeout: 5000,
       maxQueryLength: 1000,
-      debug: true
+      debug: true,
     };
 
     const config = new Configuration(userConfig);
@@ -48,7 +48,9 @@ describe('Configuration', () => {
   });
 
   it('should throw error when context is missing', () => {
-    expect(() => new Configuration({} as any)).toThrow('JSON-LD context is required in configuration');
+    expect(() => new Configuration({} as any)).toThrow(
+      'JSON-LD context is required in configuration'
+    );
   });
 
   it('should get specific configuration value', () => {
@@ -59,10 +61,10 @@ describe('Configuration', () => {
 
   it('should update configuration values', () => {
     const config = new Configuration({ context: mockContext });
-    
+
     config.update({
       timeout: 10000,
-      debug: true
+      debug: true,
     });
 
     expect(config.get('timeout')).toBe(10000);
@@ -72,7 +74,7 @@ describe('Configuration', () => {
   it('should preserve immutability in getConfig', () => {
     const config = new Configuration({ context: mockContext });
     const configObj = config.getConfig();
-    
+
     // Attempt to modify the returned config
     configObj.timeout = 1;
     configObj.debug = true;
@@ -82,4 +84,4 @@ describe('Configuration', () => {
     expect(newConfigObj.timeout).toBe(30000);
     expect(newConfigObj.debug).toBe(false);
   });
-}); 
+});

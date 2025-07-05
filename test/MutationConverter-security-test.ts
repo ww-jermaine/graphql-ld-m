@@ -1,6 +1,6 @@
-import { MutationConverter } from "../src/mutation/MutationConverter";
-import { JsonLdContextNormalized, ContextParser } from "jsonld-context-parser";
-import { DataFactory } from "rdf-data-factory";
+import { MutationConverter } from '../src/mutation/MutationConverter';
+import { JsonLdContextNormalized, ContextParser } from 'jsonld-context-parser';
+import { DataFactory } from 'rdf-data-factory';
 
 const DF = new DataFactory();
 
@@ -37,12 +37,13 @@ describe('MutationConverter Security Tests', () => {
     `;
 
     const sparql = converter.convertToSparql(inputWithQuotes);
-    
+
     // Should properly escape the quotes in the generated SPARQL via sparqlalgebrajs
     expect(sparql).toContain('\\"'); // Library escapes quotes
     expect(sparql).toContain('INSERT DATA');
     expect(sparql).not.toContain('"; '); // Should not have unescaped quote-semicolon patterns
-  });  it('should handle newlines and special characters safely', () => {
+  });
+  it('should handle newlines and special characters safely', () => {
     const inputWithSpecialChars = `
       mutation {
         createUser(input: {
@@ -54,13 +55,13 @@ describe('MutationConverter Security Tests', () => {
         }
       }
     `;
-    
+
     const sparql = converter.convertToSparql(inputWithSpecialChars);
-    
+
     // Should properly escape newlines, tabs, carriage returns via sparqlalgebrajs
-    expect(sparql).toContain('\\n');  // Library escapes \n as \\n
-    expect(sparql).toContain('\\t');  // Library escapes \t as \\t  
-    expect(sparql).toContain('\\r');  // Library escapes \r as \\r
+    expect(sparql).toContain('\\n'); // Library escapes \n as \\n
+    expect(sparql).toContain('\\t'); // Library escapes \t as \\t
+    expect(sparql).toContain('\\r'); // Library escapes \r as \\r
   });
 
   it('should prevent IRI injection in named nodes', () => {
@@ -84,7 +85,7 @@ describe('MutationConverter Security Tests', () => {
 
   it('should handle blank node names safely', () => {
     const converter2 = new MutationConverter(context, DF);
-    
+
     const inputWithoutId = `
       mutation {
         createUser(input: {
@@ -96,7 +97,7 @@ describe('MutationConverter Security Tests', () => {
     `;
 
     const sparql = converter2.convertToSparql(inputWithoutId);
-    
+
     // Should generate valid SPARQL with skolemized IRI
     expect(sparql).toContain('INSERT DATA');
     expect(sparql).toContain('urn:uuid:');
@@ -116,7 +117,7 @@ describe('MutationConverter Security Tests', () => {
     `;
 
     const sparql = converter.convertToSparql(updateInput);
-    
+
     // Should generate proper variable names
     expect(sparql).toContain('?old_name');
     expect(sparql).toContain('DELETE');

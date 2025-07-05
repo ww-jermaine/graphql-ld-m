@@ -132,6 +132,7 @@ graph TB
 
 ```mermaid
 erDiagram
+    %% ───────────────────  ENTITIES  ───────────────────
     PRODUCT {
         string id PK
         string name
@@ -140,7 +141,7 @@ erDiagram
         string currency
         string brand
     }
-    
+
     REVIEW {
         string id PK
         int rating
@@ -148,9 +149,13 @@ erDiagram
         string reviewer
         string productId FK
     }
-    
-    PRODUCT ||--o{ REVIEW : "schema:review"
-    REVIEW }o--|| PRODUCT : "schema:itemReviewed"
+
+    %% ────────────────  RELATIONSHIPS  ────────────────
+    %% A product may have zero … many reviews
+    PRODUCT ||--o{ REVIEW  : "schema:review"
+
+    %% Each review is for exactly one product
+    REVIEW  }o--|| PRODUCT : "schema:itemReviewed"
 ```
 
 ### Mutation Queries Processing Flow

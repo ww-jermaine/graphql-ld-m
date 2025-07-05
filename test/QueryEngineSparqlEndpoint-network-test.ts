@@ -8,7 +8,7 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
   const endpointUrl = 'http://example.org/sparql';
   const dataFactory = new DataFactory();
   const algebraFactory = new Factory(dataFactory);
-  
+
   let queryEngine: QueryEngineSparqlEndpoint;
   let fetchMock: jest.Mock;
 
@@ -30,31 +30,29 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
 
     const pattern = algebraFactory.createPattern(subject, predicate, object);
     const bgp = algebraFactory.createBgp([pattern]);
-    
+
     // Wrap in Project to make it a valid query
-    return algebraFactory.createProject(
-      bgp,
-      [object]
-    );
+    return algebraFactory.createProject(bgp, [object]);
   }
 
   describe('Network Error Handling', () => {
     test('should handle network timeout', async () => {
       const query = createTestQuery();
-      fetchMock.mockImplementation(() => new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Network timeout')), 100);
-      }));
+      fetchMock.mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Network timeout')), 100);
+          })
+      );
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
 
     test('should handle network connection error', async () => {
       const query = createTestQuery();
       fetchMock.mockRejectedValue(new Error('Failed to connect'));
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
 
     test('should handle non-200 response status', async () => {
@@ -63,11 +61,10 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
-        text: () => Promise.resolve('Server error')
+        text: () => Promise.resolve('Server error'),
       });
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
 
     test('should handle malformed JSON response', async () => {
@@ -76,23 +73,24 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
         ok: true,
         status: 200,
         text: () => Promise.resolve('Invalid JSON'),
-        json: () => Promise.reject(new Error('Invalid JSON'))
+        json: () => Promise.reject(new Error('Invalid JSON')),
       });
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
   });
 
   describe('Update Operation Network Handling', () => {
     test('should handle update operation timeout', async () => {
       const updateQuery = 'INSERT DATA { <s> <p> <o> }';
-      fetchMock.mockImplementation(() => new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Network timeout')), 100);
-      }));
+      fetchMock.mockImplementation(
+        () =>
+          new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Network timeout')), 100);
+          })
+      );
 
-      await expect(queryEngine.update(updateQuery))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.update(updateQuery)).rejects.toThrow(QueryEngineError);
     });
 
     test('should handle update operation failure response', async () => {
@@ -101,11 +99,10 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
         ok: false,
         status: 400,
         statusText: 'Bad Request',
-        text: () => Promise.resolve('Invalid update syntax')
+        text: () => Promise.resolve('Invalid update syntax'),
       });
 
-      await expect(queryEngine.update(updateQuery))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.update(updateQuery)).rejects.toThrow(QueryEngineError);
     });
   });
 
@@ -115,14 +112,14 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          // Missing 'head' and 'results' fields
-          incomplete: 'response'
-        })
+        json: () =>
+          Promise.resolve({
+            // Missing 'head' and 'results' fields
+            incomplete: 'response',
+          }),
       });
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
 
     test('should handle invalid bindings format', async () => {
@@ -130,17 +127,17 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          head: { vars: ['o'] },
-          results: {
-            // Completely invalid format - not even an array
-            bindings: "not an array of bindings"
-          }
-        })
+        json: () =>
+          Promise.resolve({
+            head: { vars: ['o'] },
+            results: {
+              // Completely invalid format - not even an array
+              bindings: 'not an array of bindings',
+            },
+          }),
       });
 
-      await expect(queryEngine.query(query))
-        .rejects.toThrow(QueryEngineError);
+      await expect(queryEngine.query(query)).rejects.toThrow(QueryEngineError);
     });
   });
 
@@ -150,17 +147,20 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
       const successResponse = {
         ok: true,
         status: 200,
-        json: () => Promise.resolve({
-          head: { vars: ['o'] },
-          results: { bindings: [] }
-        })
+        json: () =>
+          Promise.resolve({
+            head: { vars: ['o'] },
+            results: { bindings: [] },
+          }),
       };
 
       fetchMock.mockResolvedValue(successResponse);
 
       // Make multiple concurrent requests
-      const requests = Array(5).fill(null).map(() => queryEngine.query(query));
-      
+      const requests = Array(5)
+        .fill(null)
+        .map(() => queryEngine.query(query));
+
       await expect(Promise.all(requests)).resolves.toBeDefined();
       expect(fetchMock).toHaveBeenCalledTimes(5);
     });
@@ -177,18 +177,21 @@ describe('QueryEngineSparqlEndpoint Network Handling', () => {
         return Promise.resolve({
           ok: true,
           status: 200,
-          json: () => Promise.resolve({
-            head: { vars: ['o'] },
-            results: { bindings: [] }
-          })
+          json: () =>
+            Promise.resolve({
+              head: { vars: ['o'] },
+              results: { bindings: [] },
+            }),
         });
       });
 
-      const requests = Array(4).fill(null).map(() => queryEngine.query(query));
-      
+      const requests = Array(4)
+        .fill(null)
+        .map(() => queryEngine.query(query));
+
       const results = await Promise.allSettled(requests);
       expect(results.filter(r => r.status === 'rejected').length).toBe(2);
       expect(results.filter(r => r.status === 'fulfilled').length).toBe(2);
     });
   });
-}); 
+});
