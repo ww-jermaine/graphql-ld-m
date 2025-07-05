@@ -43,15 +43,19 @@ describe('IriValidator', () => {
 
     it('should include IRI in error details', () => {
       const invalidIRI = 'not-a-uri';
+
+      expect(() => IriValidator.validateIri(invalidIRI)).toThrow(ValidationError);
+
+      // Test the error details separately
+      let caughtError: any;
       try {
         IriValidator.validateIri(invalidIRI);
-        fail('Should have thrown error');
       } catch (error) {
-        expect(error instanceof ValidationError).toBe(true);
-        if (error instanceof ValidationError) {
-          expect(error.details).toEqual({ iri: invalidIRI });
-        }
+        caughtError = error;
       }
+
+      expect(caughtError).toBeInstanceOf(ValidationError);
+      expect(caughtError.details).toEqual({ iri: invalidIRI });
     });
   });
 });
@@ -168,15 +172,19 @@ describe('SparqlValidator', () => {
 
     it('should include query in error details', () => {
       const invalidQuery = 'DROP GRAPH <http://example.com>';
+
+      expect(() => SparqlValidator.validateQuery(invalidQuery)).toThrow(ValidationError);
+
+      // Test the error details separately
+      let caughtError: any;
       try {
         SparqlValidator.validateQuery(invalidQuery);
-        fail('Should have thrown error');
       } catch (error) {
-        expect(error instanceof ValidationError).toBe(true);
-        if (error instanceof ValidationError) {
-          expect(error.details).toEqual({ query: invalidQuery });
-        }
+        caughtError = error;
       }
+
+      expect(caughtError).toBeInstanceOf(ValidationError);
+      expect(caughtError.details).toEqual({ query: invalidQuery });
     });
   });
 });

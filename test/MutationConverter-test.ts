@@ -232,13 +232,11 @@ describe('MutationConverter', () => {
       ).toBe(true);
 
       expect(op.where).toBeDefined();
-      // For where, check for patterns property and check patterns accordingly
-      if (op.where && op.where.patterns) {
-        expect(op.where.patterns.length).toBe(1);
-        expect(
-          containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))
-        ).toBe(true);
-      }
+      expect(op.where.patterns).toBeDefined();
+      expect(op.where.patterns.length).toBe(1);
+      expect(containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))).toBe(
+        true
+      );
     });
 
     it('should convert an update of multiple fields', () => {
@@ -283,16 +281,14 @@ describe('MutationConverter', () => {
       ).toBe(true);
 
       expect(op.where).toBeDefined();
-      // For where, check for patterns property and check patterns accordingly
-      if (op.where && op.where.patterns) {
-        expect(op.where.patterns.length).toBe(2);
-        expect(
-          containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))
-        ).toBe(true);
-        expect(containsPattern(op.where.patterns, pattern(subject, agePredicate, oldAgeVar))).toBe(
-          true
-        );
-      }
+      expect(op.where.patterns).toBeDefined();
+      expect(op.where.patterns.length).toBe(2);
+      expect(containsPattern(op.where.patterns, pattern(subject, namePredicate, oldNameVar))).toBe(
+        true
+      );
+      expect(containsPattern(op.where.patterns, pattern(subject, agePredicate, oldAgeVar))).toBe(
+        true
+      );
     });
 
     it('should throw error for update mutation with missing id', () => {
@@ -323,11 +319,9 @@ describe('MutationConverter', () => {
       expect(op.insert).toBeUndefined(); // No insert clause for delete
 
       expect(op.where).toBeDefined();
-      // For where, check for patterns property and check patterns accordingly
-      if (op.where && op.where.patterns) {
-        expect(op.where.patterns.length).toBe(1);
-        expect(containsPattern(op.where.patterns, expectedPattern)).toBe(true);
-      }
+      expect(op.where.patterns).toBeDefined();
+      expect(op.where.patterns.length).toBe(1);
+      expect(containsPattern(op.where.patterns, expectedPattern)).toBe(true);
     });
 
     it('should throw error for delete mutation with missing id', () => {

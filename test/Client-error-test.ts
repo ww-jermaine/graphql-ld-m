@@ -141,10 +141,12 @@ describe('Client Error Handling', () => {
       };
 
       // This should not throw an error
-      await client.graphQlToSparql({
-        query,
-        variables: complexVariables,
-      });
+      await expect(
+        client.graphQlToSparql({
+          query,
+          variables: complexVariables,
+        })
+      ).resolves.toBeDefined();
     });
 
     test('should handle undefined and null values', async () => {
@@ -156,10 +158,12 @@ describe('Client Error Handling', () => {
       };
 
       // This should not throw an error
-      await client.graphQlToSparql({
-        query,
-        variables,
-      });
+      await expect(
+        client.graphQlToSparql({
+          query,
+          variables,
+        })
+      ).resolves.toBeDefined();
     });
 
     test('should handle array with mixed types', async () => {
@@ -169,10 +173,12 @@ describe('Client Error Handling', () => {
       };
 
       // This should not throw an error
-      await client.graphQlToSparql({
-        query,
-        variables,
-      });
+      await expect(
+        client.graphQlToSparql({
+          query,
+          variables,
+        })
+      ).resolves.toBeDefined();
     });
   });
 });
