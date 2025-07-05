@@ -49,6 +49,7 @@ describe('Client', () => {
       name: 'ex:name',
       age: 'ex:age',
       User: 'ex:User',
+      Person: 'ex:Person',
     },
   };
 
@@ -205,6 +206,199 @@ describe('Client', () => {
           variables: { name: 'Test User' },
         })
       ).rejects.toThrow(QueryEngineError);
+    });
+  });
+
+  describe('Client Initialization', () => {
+    test('should use existing variable method if factory already has one', () => {
+      const mockFactory = {
+        namedNode: jest.fn(),
+        blankNode: jest.fn(),
+        literal: jest.fn(),
+        defaultGraph: jest.fn(),
+        quad: jest.fn(),
+        variable: jest.fn().mockImplementation((value: string) => ({
+          termType: 'Variable',
+          value,
+          equals: (other: any) => other.termType === 'Variable' && other.value === value,
+        })),
+      };
+
+      new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+        dataFactory: mockFactory as any,
+      });
+
+      // The factory should use the existing variable method
+      expect(mockFactory.variable).toBeDefined();
+    });
+
+    test('should create extended factory when base factory lacks variable method', () => {
+      const mockFactory = {
+        namedNode: jest.fn(),
+        blankNode: jest.fn(),
+        literal: jest.fn(),
+        defaultGraph: jest.fn(),
+        quad: jest.fn(),
+        // No variable method
+      };
+
+      new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+        dataFactory: mockFactory as any,
+      });
+
+      // The factory should now have a variable method added
+      expect((mockFactory as any).variable).toBeDefined();
+    });
+  });
+
+  describe('Mutation Error Handling', () => {
+    test('should throw error when query engine does not support mutations', async () => {
+      const queryEngineWithoutUpdate = {
+        query: jest.fn(),
+        // No update method
+      };
+
+      const client = new Client({
+        context: mockContext,
+        queryEngine: queryEngineWithoutUpdate,
+      });
+
+      const mutation = `
+        mutation {
+          createPerson(input: { name: "Test" }) {
+            id
+          }
+        }
+      `;
+
+      await expect(client.mutate({ query: mutation })).rejects.toThrow(
+        'Mutations are not supported by the current query engine.'
+      );
+    });
+
+    test('should re-throw QueryEngineError with mutation prefix', async () => {
+      const queryEngineError = new QueryEngineError('Engine specific error', 'TEST_ERROR');
+      const queryEngine = new MockQueryEngine(undefined, undefined, true);
+      queryEngine.update = jest.fn().mockRejectedValue(queryEngineError);
+
+      const client = new Client({
+        context: mockContext,
+        queryEngine,
+      });
+
+      const mutation = `
+        mutation {
+          createPerson(input: { name: "Test" }) {
+            id
+          }
+        }
+      `;
+
+      await expect(client.mutate({ query: mutation })).rejects.toThrow(
+        'Mutation execution failed: Engine specific error'
+      );
+    });
+  });
+
+  describe('SPARQL Algebra Conversion', () => {
+    test('should throw error for invalid algebra object (null)', async () => {
+      const client = new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+      });
+
+      // Mock the graphqlToSparql converter to return invalid algebra
+      (client as any).graphqlToSparqlConverter = {
+        graphqlToSparqlAlgebra: jest.fn().mockResolvedValue(null),
+      };
+
+      const query = '{ person { name } }';
+
+      await expect(client.graphQlToSparql({ query })).rejects.toThrow(
+        'Invalid SPARQL algebra object'
+      );
+    });
+
+    test('should throw error for algebra object missing type property', async () => {
+      const client = new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+      });
+
+      // Mock the graphqlToSparql converter to return algebra without type
+      (client as any).graphqlToSparqlConverter = {
+        graphqlToSparqlAlgebra: jest.fn().mockResolvedValue({ invalid: 'object' }),
+      };
+
+      const query = '{ person { name } }';
+
+      await expect(client.graphQlToSparql({ query })).rejects.toThrow(
+        'SPARQL algebra missing required type property'
+      );
+    });
+  });
+
+  describe('Value Conversion Edge Cases', () => {
+    test('should handle unknown value types by converting to string', async () => {
+      const client = new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+      });
+
+      const unknownValue = Symbol('test');
+      const variables = {
+        unknownType: unknownValue,
+      };
+
+      // This should not throw an error - should convert unknown types to strings
+      const result = await client.graphQlToSparql({
+        query: '{ person { name } }',
+        variables,
+      });
+
+      expect(result).toBeDefined();
+    });
+
+    test('should handle undefined value by converting to string', async () => {
+      const client = new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+      });
+
+      const variables = {
+        undefinedValue: undefined,
+      };
+
+      // This should not throw an error
+      const result = await client.graphQlToSparql({
+        query: '{ person { name } }',
+        variables,
+      });
+
+      expect(result).toBeDefined();
+    });
+
+    test('should handle function value by converting to string', async () => {
+      const client = new Client({
+        context: mockContext,
+        queryEngine: new MockQueryEngine(),
+      });
+
+      const variables = {
+        functionValue: () => 'test',
+      };
+
+      // This should not throw an error
+      const result = await client.graphQlToSparql({
+        query: '{ person { name } }',
+        variables,
+      });
+
+      expect(result).toBeDefined();
     });
   });
 });

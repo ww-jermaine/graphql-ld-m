@@ -12,6 +12,7 @@ describe('MutationConverter Error Handling', () => {
   beforeEach(async () => {
     context = await new ContextParser().parse({
       '@context': {
+        '@base': 'http://example.org/',
         ex: 'http://example.org/',
         Person: 'ex:Person',
         name: 'ex:name',
@@ -91,7 +92,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Create mutation for Person must have an 'input' object argument."
+        "Create mutation for Person must have an 'input' argument."
       );
     });
 
@@ -105,7 +106,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Create mutation for Person must have an 'input' object argument."
+        "Create mutation input for Person must be an object. Found: StringValue"
       );
     });
 
@@ -119,7 +120,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Update mutation for Person must have an 'input' object argument."
+        "Update mutation for Person must have an 'input' argument."
       );
     });
 
@@ -133,7 +134,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Update mutation for Person must have an 'input' object argument."
+        "Update mutation input for Person must be an object. Found: StringValue"
       );
     });
   });
@@ -179,6 +180,7 @@ describe('MutationConverter Error Handling', () => {
       // Create a context without the required type mapping
       const limitedContext = await new ContextParser().parse({
         '@context': {
+          '@base': 'http://example.org/',
           ex: 'http://example.org/',
           name: 'ex:name',
           // Missing "UnknownType" mapping
@@ -204,6 +206,7 @@ describe('MutationConverter Error Handling', () => {
       // Create a context with @vocab but without specific type mapping
       const vocabContext = await new ContextParser().parse({
         '@context': {
+          '@base': 'http://example.org/',
           '@vocab': 'http://vocab.example.org/',
           name: 'ex:name',
         },
@@ -227,6 +230,7 @@ describe('MutationConverter Error Handling', () => {
       // Create a context without type mapping and without @vocab
       const noVocabContext = await new ContextParser().parse({
         '@context': {
+          '@base': 'http://example.org/',
           name: 'ex:name',
           // No @vocab and no specific type mapping
         },
@@ -259,7 +263,7 @@ describe('MutationConverter Error Handling', () => {
       `;
 
       expect(() => converter.convertToSparql(mutation)).toThrow(
-        "Input 'id' field must be a String for create."
+        "Input 'id' field must be a string. Found: IntValue"
       );
     });
   });

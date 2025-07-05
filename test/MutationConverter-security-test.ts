@@ -12,6 +12,7 @@ describe('MutationConverter Security Tests', () => {
     const contextParser = new ContextParser();
     context = await contextParser.parse({
       '@context': {
+        '@base': 'http://example.org/',
         ex: 'http://example.org/',
         foaf: 'http://xmlns.com/foaf/0.1/',
         xsd: 'http://www.w3.org/2001/XMLSchema#',

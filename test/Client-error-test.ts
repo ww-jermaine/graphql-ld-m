@@ -78,7 +78,7 @@ describe('Client Error Handling', () => {
       const queryEngineError = new QueryEngineError('Engine specific error', 'TEST_ERROR');
       (mockQueryEngine.update as jest.Mock).mockRejectedValue(queryEngineError);
 
-      await expect(client.mutate({ query: mutation })).rejects.toThrow(queryEngineError);
+      await expect(client.mutate({ query: mutation })).rejects.toThrow('Mutation execution failed: Engine specific error');
     });
   });
 

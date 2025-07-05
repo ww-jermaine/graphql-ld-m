@@ -1,5 +1,6 @@
 import { Converter as GraphQlToSparqlConverter } from 'graphql-to-sparql';
 import { ExecutionResult } from 'graphql/execution/execute';
+import { GraphQLError } from 'graphql/error';
 import { print, ValueNode, Kind, ObjectFieldNode, NameNode } from 'graphql/language';
 
 import { ContextParser, JsonLdContextNormalized } from 'jsonld-context-parser';
@@ -120,8 +121,20 @@ export class Client {
       const sparqlJsonResult = await this.queryEngine.update(sparqlUpdate, args.queryEngineOptions);
       return { data: { mutate: { success: true, details: sparqlJsonResult } } };
     } catch (error: unknown) {
+      // Re-throw QueryEngineError as-is for specific error handling
+      if (error instanceof QueryEngineError) {
+        const errorMessage = error.message;
+        throw new QueryEngineError(`Mutation execution failed: ${errorMessage}`, 'MUTATION_ERROR');
+      }
+      
+      // For other errors, return them in the result
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new QueryEngineError(`Mutation execution failed: ${errorMessage}`, 'MUTATION_ERROR');
+      return {
+        data: null,
+        errors: [new GraphQLError(errorMessage, {
+          extensions: { code: 'MUTATION_ERROR' }
+        })]
+      };
     }
   }
 
