@@ -30,45 +30,52 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), mergedOptions.timeout);
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, mergedOptions.timeout);
+      timeoutId.unref?.(); // Call unref if available (Node.js)
 
-      const response = await fetch(this.endpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/sparql-query',
-          'Accept': 'application/sparql-results+json'
-        },
-        body: sparql,
-        signal: controller.signal
-      });
+      try {
+        const response = await fetch(this.endpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/sparql-query',
+            'Accept': 'application/sparql-results+json'
+          },
+          body: sparql,
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new QueryEngineError(
-          `SPARQL query failed: ${response.statusText} - ${errorText}`,
-          `HTTP_${response.status}`
-        );
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new QueryEngineError(
+            `SPARQL query failed: ${response.statusText} - ${errorText}`,
+            `HTTP_${response.status}`
+          );
+        }
+
+        const result = await response.json() as unknown;
+
+        // Type guard for SPARQL JSON result
+        if (!this.isSparqlQueryResult(result)) {
+          throw new QueryEngineError(
+            'Invalid SPARQL JSON response structure',
+            'INVALID_RESPONSE_FORMAT'
+          );
+        }
+
+        // Apply maxResults limit if specified
+        if (mergedOptions.maxResults && result.results.bindings.length > mergedOptions.maxResults) {
+          result.results.bindings = result.results.bindings.slice(0, mergedOptions.maxResults);
+        }
+
+        return result;
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      const result = await response.json() as unknown;
-
-      // Type guard for SPARQL JSON result
-      if (!this.isSparqlQueryResult(result)) {
-        throw new QueryEngineError(
-          'Invalid SPARQL JSON response structure',
-          'INVALID_RESPONSE_FORMAT'
-        );
-      }
-
-      // Apply maxResults limit if specified
-      if (mergedOptions.maxResults && result.results.bindings.length > mergedOptions.maxResults) {
-        result.results.bindings = result.results.bindings.slice(0, mergedOptions.maxResults);
-      }
-
-      return result;
-    } catch (error: unknown) {
+    } catch (error) {
       if (error instanceof QueryEngineError) {
         throw error;
       }
@@ -96,31 +103,38 @@ export class QueryEngineSparqlEndpoint implements QueryEngine {
     
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), mergedOptions.timeout);
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, mergedOptions.timeout);
+      timeoutId.unref?.(); // Call unref if available (Node.js)
 
-      const response = await fetch(this.updateEndpointUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/sparql-update'
-        },
-        body: sparqlUpdate,
-        signal: controller.signal
-      });
+      try {
+        const response = await fetch(this.updateEndpointUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/sparql-update'
+          },
+          body: sparqlUpdate,
+          signal: controller.signal
+        });
 
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new QueryEngineError(
-          `SPARQL UPDATE failed: ${response.statusText} - ${errorText}`,
-          `HTTP_${response.status}`
-        );
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new QueryEngineError(
+            `SPARQL UPDATE failed: ${response.statusText} - ${errorText}`,
+            `HTTP_${response.status}`
+          );
+        }
+        
+        return { 
+          success: true, 
+          message: "Update operation completed successfully." 
+        };
+      } finally {
+        clearTimeout(timeoutId);
       }
-      
-      return { 
-        success: true, 
-        message: "Update operation completed successfully." 
-      };
     } catch (error: unknown) {
       if (error instanceof QueryEngineError) {
         throw error;

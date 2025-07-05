@@ -1,0 +1,45 @@
+#
+# GraphDB repository configuration template
+#
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix rep: <http://www.openrdf.org/config/repository#>.
+@prefix sr: <http://www.openrdf.org/config/repository/sail#>.
+@prefix sail: <http://www.openrdf.org/config/sail#>.
+@prefix owlim: <http://www.ontotext.com/trree/owlim#>.
+
+[] a rep:Repository ;
+    rep:repositoryID "graphql-demo" ;
+    rdfs:label "GraphQL Demo Repository" ;
+    rep:repositoryImpl [
+        rep:repositoryType "graphdb:SailRepository" ;
+        sr:sailImpl [
+            sail:sailType "graphdb:Sail" ;
+            
+            # Entity index size
+            owlim:entity-index-size "10000000" ;
+            
+            # Enable context index
+            owlim:enable-context-index "true" ;
+            
+            # Enable predicate list
+            owlim:enablePredicateList "true" ;
+            
+            # Cache memory
+            owlim:cache-memory "80m" ;
+            
+            # Rule set
+            owlim:ruleset "owl-horst" ;
+            
+            # Storage folder
+            owlim:storage-folder "storage" ;
+            
+            # Enable literal index
+            owlim:enable-literal-index "true" ;
+            
+            # Entity ID size
+            owlim:entity-id-size "32" ;
+            
+            # Entity ID bits size
+            owlim:entity-id-bits "32"
+        ]
+    ]. 

@@ -165,9 +165,13 @@ export class Client {
         variablesDict,
       };
 
+      // Convert query to string if it's a DocumentNode
+      const queryString = typeof query === 'string' ? query : print(query);
+
       const sparqlAlgebra = await this.graphqlToSparqlConverter
-        .graphqlToSparqlAlgebra(query, (await this.context).getContextRaw(), options);
-      return { sparqlAlgebra, singularizeVariables };
+        .graphqlToSparqlAlgebra(queryString, (await this.context).getContextRaw(), options);
+
+      return { sparqlAlgebra: sparqlAlgebra as any, singularizeVariables };
     } catch (error) {
       throw new QueryEngineError(
         `GraphQL to SPARQL conversion failed: ${error instanceof Error ? error.message : String(error)}`,

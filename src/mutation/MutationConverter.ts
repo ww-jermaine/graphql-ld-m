@@ -122,7 +122,9 @@ export class MutationConverter {
             if (iriValue.includes('\n') || iriValue.includes('\r') || iriValue.includes('>') || iriValue.includes('<')) {
               throw new Error("Invalid IRI: contains illegal characters that could cause injection");
             }
-            subjectHint = this.dataFactory.namedNode(iriValue);
+            // Expand the IRI using the context
+            const expandedIri = this.expandIri(iriValue);
+            subjectHint = this.dataFactory.namedNode(expandedIri);
           }
         }
 
@@ -226,7 +228,10 @@ export class MutationConverter {
       if (iriValue.includes('\n') || iriValue.includes('\r') || iriValue.includes('>') || iriValue.includes('<')) {
         throw new Error("Invalid IRI: contains illegal characters that could cause injection");
       }
-      localSubject = this.dataFactory.namedNode(iriValue);
+      
+      // Expand the IRI using the context
+      const expandedIri = this.expandIri(iriValue);
+      localSubject = this.dataFactory.namedNode(expandedIri);
     } else {
       // Use skolemized IRI instead of blank node for better idempotency
       const uuid = this.generateUUID();
@@ -247,6 +252,34 @@ export class MutationConverter {
       const objectValue = this.parseValueNode(field.value);
       quads.push(this.dataFactory.quad(localSubject, predicateIri, objectValue));
     });
+  }
+
+  /**
+   * Expands a relative IRI using the JSON-LD context.
+   * @param iri The IRI to expand.
+   * @returns The expanded IRI.
+   * @private
+   */
+  private expandIri(iri: string): string {
+    // If it's already an absolute IRI, return as is
+    if (iri.startsWith('http://') || iri.startsWith('https://')) {
+      return iri;
+    }
+
+    // Get base from context
+    const contextRaw = this.context.getContextRaw();
+    const base = contextRaw['@base'] as string;
+    
+    // If no base is defined, use the IRI as is
+    if (!base) {
+      return iri;
+    }
+
+    // Remove trailing slash from base if present
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    
+    // Use the IRI as-is since colons are valid in URL paths
+    return `${cleanBase}/${iri}`;
   }
 
   /**
